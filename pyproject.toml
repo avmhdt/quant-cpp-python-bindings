@@ -111,7 +111,7 @@ select = ["E", "F", "W", "I", "B", "UP", "N", "SIM", "RUF", "NPY", "PT", "C4", "
 python_version = "3.11"
 strict = true
 warn_unreachable = true
-mypy_path = "src"
+mypy_path = ["src", "tests/python"]
 explicit_package_bases = true
 
 [[tool.mypy.overrides]]

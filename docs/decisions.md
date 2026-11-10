@@ -186,3 +186,65 @@ or keys ever go in this file.
   `--benchmark_filter=Rolling` works; they carry a NOLINT for the naming check.
 - **TSan locally.** WSL2's kernel uses high-entropy ASLR like the CI runners. Locally the
   concurrency tests run under `setarch -R` (no sudo needed); CI lowers `vm.mmap_rnd_bits`.
+
+### M3 (2026-11-09)
+
+- **Input dispatch.** Every batch function takes one generic read-only ndarray. float64 and
+  float32 of any stride are read in place; integer and bool dtypes are converted once to a
+  column-major float64 buffer in C++ and counted in `_debug_counters()["input_conversions"]`
+  (DQ-05); float16 and long double are converted by the Python layer (not counted: they are
+  outside DQ-05's integer/bool rule and rare). Everything else is a TypeError.
+- **2-D layout.** 2-D inputs `(n, k)` in any order are processed column by column; results
+  are column-major (Fortran order), because each column is computed contiguously. `rolling_ols`
+  accepts `y (n, k)` with `x (n, k)` or `x (n,)`, the market-beta case of the consumer table.
+- **out= returns.** The extension's `out=` variants return None; the Python wrapper returns
+  `out` itself, so `qkern.f(x, ..., out=o) is o`.
+- **Argument checks in one place.** Range checks (window, min_periods, ddof, alpha, span,
+  halflife, nan_policy) live in C++ (`src/bindings/config.hpp`) and are shared by the batch
+  functions and the streaming classes; the Python layer checks only Python types (bool or
+  float `window` is a TypeError).
+- **Streaming classes.** `RollingMoments`, `EWM`, `RollingMinMax`, `RollingOLS` are the C++
+  state classes exported directly. `RollingMinMax.update_many` and `EWM.update_many` return
+  `(min, max)` and `(mean, var)` tuples (the spec leaves these open); `RollingOLS.update_many`
+  matches `rolling_ols(..., include_current=True)` and `.resid` is the last pushed pair's
+  residual against the current fit. Pickling uses `{"v": 1, "config", "buffer", "ints",
+  "reals"}` from the C++ `save()`; `copy.copy` and `copy.deepcopy` go through the same path.
+- **pandas as a test oracle.** pandas' sliding sums keep rounding residue after a large value
+  leaves the window (std 2.8e-7 for the window `[0, 0, 0]` after 46 left it, found by
+  hypothesis). NFR-06 (d) is checked as: within 1e-9 · max(1, |pandas|) of pandas, or, where
+  pandas is further from the exact `math.fsum` reference than qkern, within the same
+  tolerance of that reference. This is not a weaker tolerance; it picks the right oracle when
+  pandas is the inaccurate one, and the difference is listed on `docs/semantics.md`.
+- **Ill-conditioned OLS windows.** Where a window's x values differ only in their last bits
+  (Sxx below 1e-8 of the window's sum of x²), Sxx is rounding noise and no two algorithms,
+  the fsum reference included, agree on beta. The property test against the reference skips
+  those rows; NaN placement is still checked on every row.
+- **pandas covariance in tests.** pandas computes rolling covariance as E[xy] − E[x]E[y]; the
+  beta comparison against pandas uses rows where x's rolling variance exceeds 1e-3, where
+  that formula is accurate, and tolerance 1e-6. The exact reference test covers OLS fully.
+- **Golden files.** 44 cases (7 univariate kernels × 6 fixtures, plus rolling OLS on the pairs
+  fixture with and without `include_current`) on the first 1,000 rows of each fixture,
+  0.6 MB in total, with pandas cross-checks in `tests/golden/manifest.json`.
+- **GIL test timing.** With release forced off, the test raises CPython's switch interval to
+  1 s around the measurement so that an interpreter-level switch between the two counter reads
+  cannot be mistaken for a release by the extension.
+- **Python reference kernels.** `qkern.testing.reference` now covers every Must kernel (window
+  recomputation with `math.fsum`, EWM from explicit weights) with qkern's semantics, as an
+  oracle independent of pandas for downstream tests too.
+- **stubtest (AC-W-09).** `mypy.stubtest qkern._qkern` runs in the lint job with
+  `tests/stubtest_allowlist.txt`, which lists only what nanobind objects cannot satisfy:
+  module-level functions are `nb_func` objects with no `inspect` signature (stubtest:
+  "not a function", runtime `(*args, **kwargs)`), and the four classes use nanobind's
+  metaclass and are disjoint bases. The function signatures in the stub come from nanobind's
+  stubgen and are drift-checked by `qkdev stubs check`; stubtest still fails on any name
+  present on one side only. This settles the M1 deferral.
+- **Stub post-processing.** nanobind writes a dtype-less ndarray parameter as bare `NDArray`,
+  which `mypy --strict` rejects; `qkdev stubs` rewrites it to `NDArray[Any]` as part of
+  generation. The streaming `update_many` methods and the pickling methods carry explicit
+  signatures (`nb::sig`, typed dicts) so the stub names `Moments`, `OLSResult` and typed
+  tuples instead of `object`.
+- **r2 formula.** r2 is computed as (Sxy/Sxx)·(Sxy/Syy) rather than Sxy²/(Sxx·Syy), which
+  underflowed to 0/0 on data near 1e-100 (found by hypothesis at the CI profile).
+- **Moments.count.** The spec's field name `count` shadows `tuple.count` on `Moments`; kept
+  as specified, with a type-ignore on that field.
+

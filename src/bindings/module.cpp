@@ -99,4 +99,8 @@ NB_MODULE(_qkern, m) {  // NOLINT(*-avoid-non-const-global-variables)
       "Private test hook: zero the debug counters.");
 
   qb::bind_rolling(m);
+  qb::bind_ewm(m);
+  qb::bind_minmax(m);
+  qb::bind_ols(m);
+  qb::bind_streaming(m);
 }

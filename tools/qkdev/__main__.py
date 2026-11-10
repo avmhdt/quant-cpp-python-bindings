@@ -8,6 +8,7 @@ import typer
 
 from tools.qkdev import data as data_mod
 from tools.qkdev import fixtures as fixtures_mod
+from tools.qkdev import golden as golden_mod
 from tools.qkdev import stubs as stubs_mod
 from tools.qkdev.settings import load_settings
 
@@ -43,6 +44,15 @@ def fixtures_make(
         log.info("all %d fixtures are byte-identical", len(fixtures_mod.FIXTURES))
     else:
         log.info("wrote %d fixtures to %s", len(fixtures_mod.FIXTURES), fixtures_mod.FIXTURE_DIR)
+
+
+@fixtures_app.command("golden")
+def fixtures_golden(
+    accept: bool = typer.Option(False, "--accept", help="Rewrite golden files and manifest."),
+    kernel: str | None = typer.Option(None, "--kernel", help="Only this kernel."),
+) -> None:
+    """Compare kernel outputs with tests/golden (1e-12 relative); --accept rewrites them."""
+    raise typer.Exit(golden_mod.run(accept=accept, kernel=kernel))
 
 
 @data_app.command("smoke")

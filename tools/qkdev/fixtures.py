@@ -126,6 +126,18 @@ def _npy_bytes(arr: npt.NDArray[np.generic]) -> bytes:
     return buf.getvalue()
 
 
+def npz_bytes(members: dict[str, npt.NDArray[np.generic]]) -> bytes:
+    """Deterministic .npz bytes: uncompressed, sorted members, fixed timestamps."""
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_STORED) as zf:
+        for key in sorted(members):
+            info = zipfile.ZipInfo(f"{key}.npy", date_time=_ZIP_DATE)
+            info.external_attr = 0o644 << 16
+            info.create_system = 3  # Unix; ZipInfo defaults to 0 on Windows
+            zf.writestr(info, _npy_bytes(members[key]))
+    return out.getvalue()
+
+
 def fixture_bytes(fx: Fixture) -> bytes:
     """Serialise one fixture to deterministic .npz bytes."""
     arrays = fx.build(np.random.default_rng(fx.seed), fx.params)
@@ -139,14 +151,7 @@ def fixture_bytes(fx: Fixture) -> bytes:
         sort_keys=True,
     )
     members: dict[str, npt.NDArray[np.generic]] = {**arrays, "meta": np.array(meta)}
-    out = io.BytesIO()
-    with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_STORED) as zf:
-        for key in sorted(members):
-            info = zipfile.ZipInfo(f"{key}.npy", date_time=_ZIP_DATE)
-            info.external_attr = 0o644 << 16
-            info.create_system = 3  # Unix; ZipInfo defaults to 0 on Windows
-            zf.writestr(info, _npy_bytes(members[key]))
-    return out.getvalue()
+    return npz_bytes(members)
 
 
 def fixture_path(fx: Fixture, directory: Path = FIXTURE_DIR) -> Path:
