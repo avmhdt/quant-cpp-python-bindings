@@ -1,0 +1,16 @@
+name: Feature request
+description: A new kernel, option or platform
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What do you need and why
+      description: The computation, its exact definition, and where you would use it.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you use today
+      description: pandas, NumPy, Polars or Numba code you would replace, if any.

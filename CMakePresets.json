@@ -1,0 +1,127 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 28, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "$env{HOME}/build/quant-cpp-python-bindings/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CPM_SOURCE_CACHE": "$env{HOME}/.cache/CPM"
+      }
+    },
+    {
+      "name": "dev",
+      "displayName": "Debug, tests on, default compiler",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "QKERN_BUILD_TESTS": "ON" }
+    },
+    {
+      "name": "gcc13",
+      "displayName": "Debug, tests on, GCC 13",
+      "inherits": "dev",
+      "cacheVariables": { "CMAKE_CXX_COMPILER": "g++-13" }
+    },
+    {
+      "name": "clang18",
+      "displayName": "Debug, tests on, Clang 18",
+      "inherits": "dev",
+      "cacheVariables": { "CMAKE_CXX_COMPILER": "clang++-18" }
+    },
+    {
+      "name": "release",
+      "displayName": "Release, tests on",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "QKERN_BUILD_TESTS": "ON" }
+    },
+    {
+      "name": "tidy",
+      "displayName": "Clang 18 with clang-tidy on every target",
+      "inherits": "clang18",
+      "cacheVariables": { "CMAKE_CXX_CLANG_TIDY": "clang-tidy-18" }
+    },
+    {
+      "name": "asan",
+      "displayName": "Clang 18, AddressSanitizer + UndefinedBehaviorSanitizer",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_CXX_COMPILER": "clang++-18",
+        "QKERN_BUILD_TESTS": "ON",
+        "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined",
+        "CMAKE_SHARED_LINKER_FLAGS": "-fsanitize=address,undefined"
+      }
+    },
+    {
+      "name": "tsan",
+      "displayName": "Clang 18, ThreadSanitizer",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_CXX_COMPILER": "clang++-18",
+        "QKERN_BUILD_TESTS": "ON",
+        "CMAKE_CXX_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=thread"
+      }
+    },
+    {
+      "name": "coverage",
+      "displayName": "GCC 13 with --coverage",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_COMPILER": "g++-13",
+        "QKERN_BUILD_TESTS": "ON",
+        "CMAKE_CXX_FLAGS": "--coverage -O0 -fno-inline",
+        "CMAKE_EXE_LINKER_FLAGS": "--coverage",
+        "CMAKE_SHARED_LINKER_FLAGS": "--coverage"
+      }
+    },
+    {
+      "name": "bench",
+      "displayName": "Release, benchmarks on",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "QKERN_BUILD_BENCH": "ON" }
+    },
+    {
+      "name": "msvc",
+      "displayName": "MSVC (default Visual Studio generator), tests on",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "QKERN_BUILD_TESTS": "ON",
+        "CPM_SOURCE_CACHE": "${sourceDir}/build/cpm-cache"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "dev", "configurePreset": "dev" },
+    { "name": "gcc13", "configurePreset": "gcc13" },
+    { "name": "clang18", "configurePreset": "clang18" },
+    { "name": "release", "configurePreset": "release" },
+    { "name": "tidy", "configurePreset": "tidy" },
+    { "name": "asan", "configurePreset": "asan" },
+    { "name": "tsan", "configurePreset": "tsan" },
+    { "name": "coverage", "configurePreset": "coverage" },
+    { "name": "bench", "configurePreset": "bench" },
+    { "name": "msvc", "configurePreset": "msvc", "configuration": "Debug" }
+  ],
+  "testPresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "output": { "outputOnFailure": true },
+      "execution": { "noTestsAction": "error" }
+    },
+    { "name": "dev", "inherits": "base", "configurePreset": "dev" },
+    { "name": "gcc13", "inherits": "base", "configurePreset": "gcc13" },
+    { "name": "clang18", "inherits": "base", "configurePreset": "clang18" },
+    { "name": "release", "inherits": "base", "configurePreset": "release" },
+    { "name": "asan", "inherits": "base", "configurePreset": "asan" },
+    { "name": "tsan", "inherits": "base", "configurePreset": "tsan" },
+    { "name": "coverage", "inherits": "base", "configurePreset": "coverage" },
+    { "name": "msvc", "inherits": "base", "configurePreset": "msvc", "configuration": "Debug" }
+  ]
+}
