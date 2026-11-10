@@ -225,8 +225,10 @@ or keys ever go in this file.
 - **Golden files.** 44 cases (7 univariate kernels × 6 fixtures, plus rolling OLS on the pairs
   fixture with and without `include_current`) on the first 1,000 rows of each fixture,
   0.6 MB in total, with pandas cross-checks in `tests/golden/manifest.json`.
-- **GIL test timing.** With release forced off, the test raises CPython's switch interval to
-  1 s around the measurement so that an interpreter-level switch between the two counter reads
+- **GIL test timing.** The test runs rolling_std on 2e6 elements (the spec's example uses
+  rolling_quantile on 2e7, which arrives at M4; 2e6 already gives thousands of increments
+  with release on). With release forced off, it raises CPython's switch interval to 5 s
+  around the measurement so that an interpreter-level switch between the two counter reads
   cannot be mistaken for a release by the extension.
 - **Python reference kernels.** `qkern.testing.reference` now covers every Must kernel (window
   recomputation with `math.fsum`, EWM from explicit weights) with qkern's semantics, as an

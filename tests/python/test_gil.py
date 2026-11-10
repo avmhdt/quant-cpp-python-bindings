@@ -16,7 +16,10 @@ import qkern
 from qkern import _qkern
 
 F64 = npt.NDArray[np.float64]
-N = 10_000_000
+# Long enough for thousands of counter increments when released (a few ms in a release
+# build), short enough to finish well inside the 5 s switch interval below even in the -O0
+# coverage and sanitizer builds.
+N = 2_000_000
 
 
 @pytest.fixture(scope="module")
@@ -55,14 +58,14 @@ def test_release_lets_other_threads_run(big: F64, ticker: list[int]) -> None:
 
 
 def test_forced_off_blocks_other_threads(big: F64, ticker: list[int]) -> None:
-    # A 1 s switch interval keeps CPython from handing the GIL to the counter between the
+    # A 5 s switch interval keeps CPython from handing the GIL to the counter between the
     # two reads unless the extension itself releases it.
     old = sys.getswitchinterval()
     try:
         _qkern._set_gil_release_min_n(2**62)
-        sys.setswitchinterval(1.0)
+        sys.setswitchinterval(5.0)
         # Let any switch request made under the old interval complete now; when this thread
-        # gets the GIL back it holds it for up to 1 s, far longer than the call.
+        # gets the GIL back it holds it for up to 5 s, far longer than the call.
         time.sleep(0.01)
         advance = _advance_during(ticker, lambda: qkern.rolling_std(big, 252))
     finally:
