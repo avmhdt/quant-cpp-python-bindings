@@ -2,7 +2,7 @@
 
 > A small, fast C++ core shipped as a real Python package with wheels, docs and CI.
 
-**Status:** in development (M4: quantile, Arrow input and benchmark harness)
+**Status:** in development (M5: packaging, docs and release pipeline; first release waits for the owner's PyPI setup)
 
 | | |
 |---|---|
@@ -14,8 +14,8 @@
 
 ## Requirements
 
-- [ ] A fast C++ core with a small, sharp scope: an order book, rolling statistics, or an options pricing toolkit.
-- [ ] Bindings with nanobind or pybind11, zero-copy NumPy or Arrow buffers, and the GIL released during long calls.
+- [x] A fast C++ core with a small, sharp scope: an order book, rolling statistics, or an options pricing toolkit. (Rolling/streaming kernels: FR-01–FR-06, FR-16.)
+- [x] Bindings with nanobind or pybind11, zero-copy NumPy or Arrow buffers, and the GIL released during long calls. (FR-10–FR-14; AC-W-07, AC-W-08.)
 - [ ] Builds with scikit-build-core and CMake; wheels for Linux, macOS and Windows via cibuildwheel.
 - [ ] Tests in both languages, type stubs, a docs site (MkDocs or Sphinx), semantic versioning and a changelog.
 - [ ] Benchmarks against pure Python, NumPy, Numba and Polars equivalents.
@@ -35,7 +35,7 @@ Raw and licensed data live in `data/`, which is git-ignored. Only download scrip
 ### Works (correct and reproducible)
 
 - [ ] pip install from PyPI works on all three operating systems, and CI is green on every commit.
-- [ ] High test coverage on the core and clean sanitizer runs.
+- [x] High test coverage on the core and clean sanitizer runs. (AC-W-03: ≥ 90% C++ and Python; AC-W-04: ASan/UBSan/TSan in CI.)
 
 ### Impresses hirers
 
