@@ -31,7 +31,12 @@ jobs:
           python-version: "3.12"
           enable-cache: true
       - name: Install clang tools and Ninja
-        run: bash .github/scripts/apt-install.sh ninja-build clang-18 clang-format-18 clang-tidy-18
+        # clang-format and clang-tidy 18.1.8 from PyPI: the runner image lacks the -18 apt
+        # packages and a slow mirror once timed this step out.
+        run: |
+          bash .github/scripts/apt-install.sh ninja-build clang-18
+          uv tool install clang-format==18.1.8
+          uv tool install clang-tidy==18.1.8
       - name: Python env (builds the extension)
         run: uv sync --locked
       - name: ruff
@@ -51,10 +56,10 @@ jobs:
       - name: Data smoke test
         run: uv run python -m tools.qkdev data smoke
       - name: clang-format
-        run: git ls-files '*.cpp' '*.hpp' | xargs clang-format-18 --dry-run --Werror
+        run: git ls-files '*.cpp' '*.hpp' | xargs clang-format --dry-run --Werror
       - name: clang-tidy (core, bindings, tests)
         run: |
-          cmake --preset tidy -DQKERN_BUILD_PYTHON=ON -DPython_EXECUTABLE="$PWD/.venv/bin/python"
+          cmake --preset tidy -DQKERN_BUILD_PYTHON=ON -DPython_EXECUTABLE="$PWD/.venv/bin/python"             -DCMAKE_CXX_CLANG_TIDY="clang-tidy;--extra-arg=-resource-dir=$(clang++-18 -print-resource-dir)"
           cmake --build --preset tidy
       - name: gitleaks
         run: |

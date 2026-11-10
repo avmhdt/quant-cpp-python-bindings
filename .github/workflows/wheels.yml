@@ -13,9 +13,11 @@ on:
 permissions:
   contents: read
 
+# Opening a labelled PR fires both "opened" and "labeled"; keying the group on the action keeps
+# one from cancelling the other.
 concurrency:
-  group: wheels-${{ github.ref }}-${{ github.event_name }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: wheels-${{ github.ref }}-${{ github.event_name }}-${{ github.event.action || 'run' }}
+  cancel-in-progress: false
 
 jobs:
   wheels:
@@ -95,7 +97,7 @@ jobs:
         shell: bash
         run: |
           uv venv --python 3.12 sdist-venv
-          if [ "$RUNNER_OS" = "Windows" ]; then py=sdist-venv/Scripts/python; else py=sdist-venv/bin/python; fi
+          if [ "$RUNNER_OS" = "Windows" ]; then py=sdist-venv/Scripts/python.exe; else py=sdist-venv/bin/python; fi
           uv pip install --python "$py" dist/*.tar.gz
           cd "$RUNNER_TEMP"
           "$GITHUB_WORKSPACE/$py" "$GITHUB_WORKSPACE/tools/qkdev/smoke.py"
