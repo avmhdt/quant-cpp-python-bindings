@@ -150,7 +150,9 @@ jobs:
         run: |
           uv sync --locked
           uv run pytest --cov=qkern --cov-branch --cov-report=term-missing --cov-fail-under=90
-          $GCOVR --json pytest.json build/coverage-ext
+          # nanobind's own sources lived in uv's temporary build environment; they are outside
+          # the filters, so gcov failing to find them is ignored.
+          $GCOVR --json pytest.json --gcov-ignore-errors=source_not_found             --gcov-ignore-errors=no_working_dir_found build/coverage-ext
       - name: Combined C++ gate (fail under 90% lines)
         run: |
           mkdir -p coverage-html
