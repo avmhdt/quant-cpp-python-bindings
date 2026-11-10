@@ -40,3 +40,12 @@ Thumbs.db
 
 # Local build spec (kept out of the public repo)
 SPEC.html
+
+# Local data symlink, wheels, coverage, docs build
+/data
+wheelhouse/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+site/

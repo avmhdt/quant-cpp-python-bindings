@@ -1,0 +1,34 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: end-of-file-fixer
+        exclude: ^src/qkern/_qkern\.pyi$
+      - id: trailing-whitespace
+        exclude: ^src/qkern/_qkern\.pyi$
+      - id: check-yaml
+      - id: check-toml
+      - id: check-added-large-files
+        args: ["--maxkb=600"]
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.4
+    hooks:
+      - id: ruff-check
+      - id: ruff-format
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v18.1.8
+    hooks:
+      - id: clang-format
+        types_or: [c++]
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+  - repo: local
+    hooks:
+      - id: qkern-stubs
+        name: _qkern.pyi is up to date (needs a built extension)
+        entry: python -c "import importlib.util, subprocess, sys; sys.exit(0 if importlib.util.find_spec('qkern') is None else subprocess.call([sys.executable, '-m', 'tools.qkdev', 'stubs', 'check']))"
+        language: system
+        pass_filenames: false
+        files: ^(src/bindings/|src/qkern/_qkern\.pyi$)

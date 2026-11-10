@@ -1,0 +1,124 @@
+[build-system]
+requires = ["scikit-build-core==1.1.2", "nanobind==2.15.0"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "qkern"
+version = "0.1.0"
+description = "Fast streaming and rolling time-series kernels: C++20 core, nanobind bindings"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "avmhdt" }]
+dependencies = ["numpy>=1.26"]
+keywords = ["rolling", "streaming", "time series", "ewma", "quant", "nanobind"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Financial and Insurance Industry",
+  "Programming Language :: C++",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Mathematics",
+  "Typing :: Typed",
+]
+
+[project.urls]
+Documentation = "https://avmhdt.github.io/quant-cpp-python-bindings/"
+Source = "https://github.com/avmhdt/quant-cpp-python-bindings"
+Changelog = "https://github.com/avmhdt/quant-cpp-python-bindings/blob/main/CHANGELOG.md"
+
+[dependency-groups]
+dev = [
+  "pytest>=8",
+  "pytest-cov>=5",
+  "hypothesis>=6.100",
+  "pandas>=2.2",
+  "pyarrow>=15",
+  "polars>=1.20",
+  "mypy>=1.11",
+  "ruff>=0.6",
+  "pre-commit>=3.7",
+  "typer>=0.12",
+  "pydantic-settings>=2.4",
+  "abi3audit",
+  "twine>=5",
+  "nanobind==2.15.0",
+  "pandas-stubs>=2.2",
+]
+bench = [
+  "numba>=0.60",
+  "polars>=1.20",
+  "pandas>=2.2",
+  "pyarrow>=15",
+  "bottleneck>=1.4",
+  "pytest-benchmark>=4",
+  "matplotlib>=3.9",
+]
+docs = ["mkdocs-material>=9.5", "mkdocstrings[python]>=0.26"]
+
+[tool.uv]
+default-groups = ["dev"]
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+build-dir = "build/{wheel_tag}"
+wheel.py-api = "cp312"             # abi3 for CPython >= 3.12; version-specific below
+cmake.build-type = "Release"
+wheel.packages = ["src/qkern"]
+sdist.exclude = [".github", "results", "docs/assets"]
+
+[tool.cibuildwheel]
+build = "cp311-* cp312-* cp313-* cp314-*"   # 3.13/3.14 reuse the cp312 abi3 wheel (verify in logs)
+skip = "*-musllinux_* *-win32 *_i686"
+test-groups = ["dev"]
+test-command = "pytest {project}/tests/python -m \"not slow and not local_data\" -q -p no:cacheprovider"
+
+[tool.cibuildwheel.linux]
+manylinux-x86_64-image = "manylinux_2_28"
+manylinux-aarch64-image = "manylinux_2_28"
+
+[tool.cibuildwheel.macos]
+environment = { MACOSX_DEPLOYMENT_TARGET = "11.0" }
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests/python"]
+pythonpath = ["."]
+addopts = ["-ra", "--strict-markers", "-m", "not slow and not local_data"]
+markers = [
+  "slow: long-running numerics or large-n tests (run with -m slow)",
+  "local_data: needs QKERN_REAL_DATA_DIR (local only, never in CI)",
+]
+filterwarnings = ["error"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["src/qkern/_qkern.pyi"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "N", "SIM", "RUF", "NPY", "PT", "C4", "PIE"]
+
+[tool.ruff.lint.per-file-ignores]
+"tools/qkdev/*.py" = ["B008"]   # Typer options as defaults is the Typer idiom
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+mypy_path = "src"
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = ["pyarrow.*", "polars.*"]
+ignore_missing_imports = true
+
+[tool.coverage.run]
+branch = true
+source = ["qkern"]
+omit = ["*/_qkern.pyi"]
