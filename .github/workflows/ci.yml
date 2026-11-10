@@ -31,7 +31,7 @@ jobs:
           python-version: "3.12"
           enable-cache: true
       - name: Install clang tools and Ninja
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq ninja-build clang-18 clang-format-18 clang-tidy-18
+        run: bash .github/scripts/apt-install.sh ninja-build clang-18 clang-format-18 clang-tidy-18
       - name: Python env (builds the extension)
         run: uv sync --locked
       - name: ruff
@@ -85,7 +85,7 @@ jobs:
           key: cpm-${{ matrix.name }}-${{ hashFiles('tests/cpp/CMakeLists.txt', 'bench/cpp/CMakeLists.txt') }}
       - name: Install compilers and Ninja (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq ninja-build g++-13 clang-18
+        run: bash .github/scripts/apt-install.sh ninja-build g++-13 clang-18
       - name: Install Ninja (macOS)
         if: runner.os == 'macOS'
         run: brew install ninja
@@ -135,7 +135,7 @@ jobs:
         with:
           python-version: "3.12"
           enable-cache: true
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ninja-build g++-13
+      - run: bash .github/scripts/apt-install.sh ninja-build g++-13
       - name: GoogleTest with --coverage
         run: |
           cmake --preset coverage
@@ -170,7 +170,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ninja-build g++-13
+      - run: bash .github/scripts/apt-install.sh ninja-build g++-13
       - name: Install qkern::core
         run: |
           cmake -S . -B build/core -G Ninja -DCMAKE_CXX_COMPILER=g++-13 -DCMAKE_BUILD_TYPE=Release
