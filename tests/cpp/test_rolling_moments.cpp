@@ -129,6 +129,19 @@ TEST(RollingMoments, ResyncWithAllNaNWindow) {
   EXPECT_EQ(st.var(), 2.0);
 }
 
+TEST(RollingMoments, LargeValueLeavingTheWindowLeavesSmallVarianceAccurate) {
+  // Without the collapse resync, M2 keeps an absolute error of a few ulp(1e16) after 1e8
+  // leaves, and the variance of {1, 2, 3} comes out visibly wrong.
+  std::vector<double> x{1e8, 1, 2, 3, 0.5, 0.25};
+  const auto v = var_of(x, {3, 3});
+  EXPECT_EQ(v[3], 1.0);
+  const auto e = qkern_test::exact_moments({2, 3, 0.5}, 1);
+  EXPECT_NEAR(v[4], e.var, 1e-15 * e.var);
+  std::vector<double> m(x.size());
+  qkern::rolling_mean(in(x), out(m), {3, 3});
+  EXPECT_EQ(m[3], 2.0);
+}
+
 TEST(RollingMoments, BatchMomentsReturnsMeanVarCount) {
   const std::vector<double> x{1, kNaN, 3, kInf, 5};
   std::vector<double> mean(5);

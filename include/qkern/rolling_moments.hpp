@@ -1,11 +1,17 @@
-// Rolling mean, variance, standard deviation and z-score over a count-based window, by
-// sliding Welford add/remove on a ring buffer with an exact two-pass resync every
-// kResyncInterval pushes. The running sums are kept for x - shift, where the shift is the
-// first value of an empty window and is moved to the exact mean at every resync. For data
-// far from zero (prices near 1e9) the running mean is then O(1) and its rounding error tiny,
-// instead of drifting by ulp(1e9) per update; x - shift is exact while x is within a factor
-// of two of the shift (Sterbenz). Batch kernels and the streaming class drive this one state
-// machine, so both give bit-identical results (FR-08).
+// Rolling mean, variance, standard deviation and z-score over a count-based window.
+//
+// Algorithm: sliding Welford add/remove on a ring buffer, with three accuracy measures.
+//   * Shifted data: the sums are kept for x - shift, where the shift is the first value of
+//     an empty window and moves to the exact mean at every resync. For data far from zero
+//     (prices near 1e9) the running mean is then O(1); x - shift is exact while x is within a
+//     factor of two of the shift (Sterbenz).
+//   * Compensated mean: the mean comes from a Neumaier sliding sum, so its error stays near
+//     eps * |mean| however large the values that already left the window were.
+//   * Exact resync: a corrected two-pass recomputation over the ring every kResyncInterval
+//     pushes, and as soon as M2 falls below kCollapseRatio of its peak since the last
+//     resync (after a large value leaves the window).
+// Batch kernels and the streaming class drive this one state machine, so both give
+// bit-identical results (FR-08).
 //
 // Semantics (spec DQ-02 to DQ-04):
 //   * NaN is never a valid observation. NanPolicy::Skip leaves it out of the window's valid
@@ -39,12 +45,13 @@ class RollingMoments {
       : cfg_(cfg), ring_((validate(cfg), cfg.window)) {}
 
   void push(double x) noexcept {
+    bool collapsed = false;
     if (ring_.full()) {
-      remove(ring_.pop_front());
+      collapsed = remove(ring_.pop_front());
     }
     ring_.push_back(x);
     add(x);
-    if (++since_resync_ >= kResyncInterval) {
+    if (++since_resync_ >= kResyncInterval || collapsed) {
       resync();
     }
   }
@@ -67,7 +74,7 @@ class RollingMoments {
     if (n_neginf_ > 0) {
       return -kInf;
     }
-    return run_.covers(n_finite_) ? run_.value() : shift_ + mean_;
+    return run_.covers(n_finite_) ? run_.value() : shift_ + shifted_mean();
   }
 
   [[nodiscard]] double var() const noexcept {
@@ -97,20 +104,57 @@ class RollingMoments {
       return kNaN;
     }
     // s is finite and non-zero, so the window holds no infinity and is not constant.
-    return ((x - shift_) - mean_) / s;
+    return ((x - shift_) - shifted_mean()) / s;
   }
 
   void reset() noexcept {
     ring_.clear();
     n_finite_ = n_posinf_ = n_neginf_ = n_nan_ = 0;
-    mean_ = m2_ = shift_ = 0.0;
+    sum_.reset();
+    m2_ = m2_peak_ = shift_ = 0.0;
     run_.reset();
     since_resync_ = 0;
   }
 
   [[nodiscard]] const RollingConfig& config() const noexcept { return cfg_; }
 
+  [[nodiscard]] State save() const {
+    State st;
+    st.buffer.reserve(ring_.size());
+    for (std::size_t i = 0; i < ring_.size(); ++i) {
+      st.buffer.push_back(ring_[i]);
+    }
+    st.ints = {n_finite_, n_posinf_, n_neginf_, n_nan_, run_.run(), since_resync_};
+    st.reals = {shift_, sum_.raw_sum(), sum_.raw_comp(), m2_, m2_peak_, run_.value()};
+    return st;
+  }
+
+  void load(const State& st) {
+    detail::check_state(st.buffer.size() <= cfg_.window && st.ints.size() == 6 &&
+                        st.reals.size() == 6 &&
+                        st.ints[0] + st.ints[1] + st.ints[2] + st.ints[3] == st.buffer.size());
+    reset();
+    for (double v : st.buffer) {
+      ring_.push_back(v);
+    }
+    n_finite_ = static_cast<std::size_t>(st.ints[0]);
+    n_posinf_ = static_cast<std::size_t>(st.ints[1]);
+    n_neginf_ = static_cast<std::size_t>(st.ints[2]);
+    n_nan_ = static_cast<std::size_t>(st.ints[3]);
+    run_.load(st.reals[5], static_cast<std::size_t>(st.ints[4]));
+    since_resync_ = st.ints[5];
+    shift_ = st.reals[0];
+    sum_.load(st.reals[1], st.reals[2]);
+    m2_ = st.reals[3];
+    m2_peak_ = st.reals[4];
+  }
+
  private:
+  // Mean of x - shift_ over the finite values, from the compensated sliding sum.
+  [[nodiscard]] double shifted_mean() const noexcept {
+    return n_finite_ == 0 ? 0.0 : sum_.value() / static_cast<double>(n_finite_);
+  }
+
   void add(double x) noexcept {
     if (std::isnan(x)) {
       ++n_nan_;
@@ -121,31 +165,35 @@ class RollingMoments {
       if (n_finite_ == 0) {
         shift_ = x;
       }
-      ++n_finite_;
       const double xs = x - shift_;
-      const double delta = xs - mean_;
-      mean_ += delta / static_cast<double>(n_finite_);
-      m2_ += delta * (xs - mean_);
+      const double mean_before = shifted_mean();
+      sum_.add(xs);
+      ++n_finite_;
+      m2_ += (xs - mean_before) * (xs - shifted_mean());
+      m2_peak_ = std::max(m2_peak_, m2_);
       run_.push_finite(x);
     }
   }
 
-  void remove(double x) noexcept {
+  // Returns true when the sums lost most of their magnitude (see kCollapseRatio).
+  bool remove(double x) noexcept {
     if (std::isnan(x)) {
       --n_nan_;
     } else if (std::isinf(x)) {
       --(x > 0 ? n_posinf_ : n_neginf_);
     } else if (n_finite_ == 1) {
       n_finite_ = 0;
-      mean_ = m2_ = 0.0;
+      sum_.reset();
+      m2_ = m2_peak_ = 0.0;
     } else {
-      --n_finite_;
       const double xs = x - shift_;
-      const double mean_before = mean_;
-      mean_ -= (xs - mean_before) / static_cast<double>(n_finite_);
-      m2_ -= (xs - mean_) * (xs - mean_before);
-      m2_ = std::max(m2_, 0.0);
+      const double mean_before = shifted_mean();
+      sum_.add(-xs);
+      --n_finite_;
+      m2_ = std::max(m2_ - (xs - shifted_mean()) * (xs - mean_before), 0.0);
+      return m2_ < kCollapseRatio * m2_peak_;
     }
+    return false;
   }
 
   // Exact recomputation over the ring (corrected two-pass, Chan, Golub and LeVeque 1983),
@@ -162,7 +210,8 @@ class RollingMoments {
       }
     }
     if (n == 0) {
-      mean_ = m2_ = shift_ = 0.0;
+      sum_.reset();
+      m2_ = m2_peak_ = shift_ = 0.0;
       return;
     }
     const auto nd = static_cast<double>(n);
@@ -178,8 +227,9 @@ class RollingMoments {
       }
     }
     const double corr = dev.value();
-    mean_ = corr / nd;
+    sum_.load(corr, 0.0);
     m2_ = std::max(sq.value() - corr * corr / nd, 0.0);
+    m2_peak_ = m2_;
   }
 
   RollingConfig cfg_;
@@ -188,9 +238,10 @@ class RollingMoments {
   std::size_t n_posinf_ = 0;
   std::size_t n_neginf_ = 0;
   std::size_t n_nan_ = 0;
-  double shift_ = 0.0;  // running sums are for x - shift_
-  double mean_ = 0.0;   // mean of x - shift_
-  double m2_ = 0.0;
+  double shift_ = 0.0;          // the sums are for x - shift_
+  detail::CompensatedSum sum_;  // sum of x - shift_ over the finite values
+  double m2_ = 0.0;             // sum of squared deviations
+  double m2_peak_ = 0.0;        // largest m2_ since the last resync
   detail::SameRun run_;
   std::uint64_t since_resync_ = 0;
 };

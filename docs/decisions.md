@@ -136,6 +136,23 @@ or keys ever go in this file.
   bound, and `x - shift` is exact (Sterbenz) while x stays within a factor of two of the
   shift. Rolling OLS uses the same scheme for x and y. The algorithm is otherwise the
   spec's: add/remove, M2 clamped at 0, exact two-pass resync every 65,536 pushes.
+- **Compensated mean and collapse resync.** The sliding mean comes from a Neumaier
+  compensated sum (add and remove), so its error stays near eps × |mean| instead of
+  eps × (largest value that passed through the window). Besides the periodic resync, the
+  moments (M2) and OLS (Sxx, Syy) recompute exactly as soon as the co-moment falls below
+  `kCollapseRatio = 1e-6` of its peak since the last resync: after a large value leaves the
+  window, the sliding update keeps an absolute error of a few ulp of the old, larger value,
+  which would otherwise dominate a much smaller variance (NFR-06 (d) on data up to 1e6, and
+  the first M2 CI run, where differently drawn data made the OLS reference test miss on
+  MSVC and AppleClang). The extra O(w) passes happen only after such collapses. The spec's
+  periodic resync interval is unchanged.
+- **State save/load.** Each streaming class has `State save() const` and `load(const State&)`
+  (window contents oldest first, plus integer and real fields). A restored object continues
+  bit-identically; malformed states throw `std::invalid_argument`. The Python layer pickles
+  this with a version field (M3).
+- **Portable test data.** The C++ tests draw Gaussians by Box-Muller on `std::mt19937_64`,
+  whose output the standard fixes, instead of `std::normal_distribution`, whose output
+  differs between libstdc++, libc++ and the MSVC STL.
 - **Constant windows.** A window whose finite values are all equal has mean exactly that
   value and variance exactly 0 (z-score NaN), tracked by a run-length counter. pandas does
   the same; without it add/remove rounding leaves a variance near 1e-30 and z-scores of

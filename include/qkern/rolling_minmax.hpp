@@ -36,6 +36,10 @@ class IndexDeque {
   [[nodiscard]] bool empty() const noexcept { return size_ == 0; }
   [[nodiscard]] std::size_t size() const noexcept { return size_; }
   [[nodiscard]] const Entry& front() const noexcept { return buf_[head_]; }
+  // i-th entry from the front.
+  [[nodiscard]] const Entry& operator[](std::size_t i) const noexcept {
+    return buf_[wrap(head_ + i)];
+  }
   [[nodiscard]] const Entry& back() const noexcept { return buf_[wrap(head_ + size_ - 1)]; }
 
   // Precondition: size() < capacity.
@@ -142,6 +146,49 @@ class RollingMinMax {
   }
 
   [[nodiscard]] const RollingConfig& config() const noexcept { return cfg_; }
+
+  [[nodiscard]] State save() const {
+    State st;
+    st.buffer.reserve(ring_.size());
+    for (std::size_t i = 0; i < ring_.size(); ++i) {
+      st.buffer.push_back(ring_[i]);
+    }
+    st.ints = {n_valid_, n_nan_, next_, ops_, min_q_.size(), max_q_.size()};
+    for (const detail::IndexDeque* q : {&min_q_, &max_q_}) {
+      for (std::size_t i = 0; i < q->size(); ++i) {
+        st.ints.push_back((*q)[i].index);
+        st.reals.push_back((*q)[i].value);
+      }
+    }
+    return st;
+  }
+
+  void load(const State& st) {
+    detail::check_state(st.ints.size() >= 6 && st.buffer.size() <= cfg_.window &&
+                        st.ints[0] + st.ints[1] == st.buffer.size());
+    const auto n_min = static_cast<std::size_t>(st.ints[4]);
+    const auto n_max = static_cast<std::size_t>(st.ints[5]);
+    detail::check_state(n_min <= cfg_.window && n_max <= cfg_.window &&
+                        st.ints.size() == 6 + n_min + n_max && st.reals.size() == n_min + n_max &&
+                        (track_min_ || n_min == 0) && (track_max_ || n_max == 0));
+    reset();
+    for (double v : st.buffer) {
+      ring_.push_back(v);
+    }
+    n_valid_ = static_cast<std::size_t>(st.ints[0]);
+    n_nan_ = static_cast<std::size_t>(st.ints[1]);
+    next_ = st.ints[2];
+    ops_ = st.ints[3];
+    for (std::size_t i = 0; i < n_min; ++i) {
+      min_q_.push_back({st.ints[6 + i], st.reals[i]});
+    }
+    for (std::size_t i = 0; i < n_max; ++i) {
+      max_q_.push_back({st.ints[6 + n_min + i], st.reals[n_min + i]});
+    }
+  }
+
+  [[nodiscard]] bool tracks_min() const noexcept { return track_min_; }
+  [[nodiscard]] bool tracks_max() const noexcept { return track_max_; }
 
  private:
   RollingConfig cfg_;

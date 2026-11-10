@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <numbers>
 #include <random>
 #include <vector>
 
@@ -51,13 +52,23 @@ inline void expect_identical(const std::vector<double>& a, const std::vector<dou
   }
 }
 
+// Gaussian draws by Box-Muller on std::mt19937_64, whose output the standard fixes, so the
+// test data is the same with every standard library (std::normal_distribution is not).
 inline std::vector<double> gaussian(std::size_t n, unsigned seed, double loc = 0.0,
                                     double scale = 1.0) {
   std::mt19937_64 rng(seed);
-  std::normal_distribution<double> dist(loc, scale);
+  const auto uniform = [&rng] {
+    // 53 random bits in (0, 1].
+    return (static_cast<double>(rng() >> 11U) + 1.0) * 0x1.0p-53;
+  };
   std::vector<double> v(n);
-  for (auto& x : v) {
-    x = dist(rng);
+  for (std::size_t i = 0; i < n; i += 2) {
+    const double r = std::sqrt(-2.0 * std::log(uniform()));
+    const double theta = 2.0 * std::numbers::pi * uniform();
+    v[i] = loc + scale * r * std::cos(theta);
+    if (i + 1 < n) {
+      v[i + 1] = loc + scale * r * std::sin(theta);
+    }
   }
   return v;
 }
@@ -65,9 +76,8 @@ inline std::vector<double> gaussian(std::size_t n, unsigned seed, double loc = 0
 // Sprinkle NaN into a series with the given probability.
 inline void add_nans(std::vector<double>& v, double prob, unsigned seed) {
   std::mt19937_64 rng(seed);
-  std::uniform_real_distribution<double> u(0.0, 1.0);
   for (auto& x : v) {
-    if (u(rng) < prob) {
+    if (static_cast<double>(rng() >> 11U) * 0x1.0p-53 < prob) {
       x = kNaN;
     }
   }

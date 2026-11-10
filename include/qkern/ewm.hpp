@@ -114,6 +114,25 @@ class Ewm {
 
   [[nodiscard]] const EwmConfig& config() const noexcept { return cfg_; }
 
+  [[nodiscard]] State save() const {
+    State st;
+    st.ints = {nobs_, poisoned_ ? 1U : 0U};
+    st.reals = {mean_, cov_, sum_wt_, sum_wt2_, old_wt_};
+    return st;
+  }
+
+  void load(const State& st) {
+    detail::check_state(st.buffer.empty() && st.ints.size() == 2 && st.reals.size() == 5 &&
+                        st.ints[1] <= 1);
+    nobs_ = static_cast<std::size_t>(st.ints[0]);
+    poisoned_ = st.ints[1] == 1;
+    mean_ = st.reals[0];
+    cov_ = st.reals[1];
+    sum_wt_ = st.reals[2];
+    sum_wt2_ = st.reals[3];
+    old_wt_ = st.reals[4];
+  }
+
  private:
   EwmConfig cfg_;
   double decay_;

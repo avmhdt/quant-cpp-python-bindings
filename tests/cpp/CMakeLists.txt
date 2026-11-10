@@ -26,7 +26,8 @@ add_executable(
   test_ewm.cpp
   test_rolling_minmax.cpp
   test_rolling_ols.cpp
-  test_numerics.cpp)
+  test_numerics.cpp
+  test_state.cpp)
 target_link_libraries(qkern_tests PRIVATE qkern::core GTest::gtest_main)
 qkern_set_warnings(qkern_tests)
 gtest_discover_tests(qkern_tests DISCOVERY_MODE PRE_TEST DISCOVERY_TIMEOUT 60)

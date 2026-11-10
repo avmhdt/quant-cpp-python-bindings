@@ -146,6 +146,14 @@ TEST(RollingOls, MatchesReferenceOnNoisyData) {
   }
 }
 
+TEST(RollingOls, LargePairLeavingTheWindowLeavesSmallFitAccurate) {
+  const std::vector<double> x{1e7, 1, 2, 3, 4};
+  const std::vector<double> y{-1e7, 3, 5, 7, 9};
+  const auto o = run(y, x, {3, 3});
+  qkern_test::expect_near_nan({o.beta[3], o.beta[4]}, {2, 2}, 1e-15);
+  qkern_test::expect_near_nan({o.alpha[3], o.alpha[4]}, {1, 1}, 1e-14);
+}
+
 TEST(RollingOls, ExcludeCurrentUsesPreviousWindow) {
   const auto x = qkern_test::gaussian(500, 65);
   auto y = qkern_test::gaussian(500, 66);
