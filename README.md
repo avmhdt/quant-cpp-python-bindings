@@ -2,7 +2,7 @@
 
 > A small, fast C++ core shipped as a real Python package with wheels, docs and CI.
 
-**Status:** in development (M1: scaffolding, CI and smoke tests)
+**Status:** in development (M2: C++ kernel core)
 
 | | |
 |---|---|

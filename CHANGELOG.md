@@ -21,3 +21,11 @@ version is 0.x, a minor version bump may break the API; every break is listed un
   `stubs check`) and seeded synthetic fixtures.
 - CI on Linux, macOS and Windows: lint, C++ tests, Python tests on 3.11 to 3.14, and an
   abi3 wheel spike.
+- C++ kernel core: rolling mean, variance, standard deviation, moments and z-score (sliding
+  Welford on shifted data, compensated mean, exact resync), EWM mean/variance/std (pandas `ewmcov`
+  recurrence, adjust=False), rolling min/max (monotonic deques) and rolling OLS (bivariate
+  sliding Welford), as streaming state classes that the batch kernels drive.
+- `cmake --install` exports `qkern::core` with `qkernConfig.cmake`; `examples/cpp_consumer`
+  builds against it with `find_package` or CPM.
+- Google Benchmark binary `qkern_bench`; ASan/UBSan and TSan CI jobs; C++ coverage gate.
+- `save()`/`load()` on every streaming state class (bit-identical continuation).

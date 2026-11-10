@@ -119,4 +119,70 @@ or keys ever go in this file.
   `abi3audit --strict` found 0 non-abi3 symbols (baseline 3.12). The 3.11 build produced a
   version-specific `cpython-311` extension, as intended. `twine check --strict` passed for the
   wheel and the sdist, and `pip install .` into a fresh 3.12 venv imported and ran.
-- CI, cibuildwheel v4.3.5 on manylinux_2_28 x86_64: see the `abi3-spike` job of the M1 PR.
+- CI, cibuildwheel v4.3.5 on manylinux_2_28 x86_64 (run 42725465145, PR #1): the build
+  linked `_qkern.abi3.so`, auditwheel produced
+  `qkern-0.1.0-cp312-abi3-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl`, cibuildwheel's
+  own `abi3audit --strict` step and the job's filename assert passed, and the test suite
+  passed inside the wheel's environment. R-02's fallback (version-specific wheels for every
+  Python) is not needed.
+
+### M2 (2026-11-09)
+
+- **Shifted accumulation.** The sliding Welford sums are kept for `x - shift`, where the
+  shift is the first value entering an empty window and moves to the exact window mean at
+  every resync. The plain form missed NFR-06 (b) on `1e9 + N(0, 1)` data (relative variance
+  error 7.4e-6 at w = 252, against 1e-6), because the running mean near 1e9 drifts by
+  ulp(1e9) ≈ 1.2e-7 per update between resyncs. With the shift the error is within the
+  bound, and `x - shift` is exact (Sterbenz) while x stays within a factor of two of the
+  shift. Rolling OLS uses the same scheme for x and y. The algorithm is otherwise the
+  spec's: add/remove, M2 clamped at 0, exact two-pass resync every 65,536 pushes.
+- **Compensated mean and collapse resync.** The sliding mean comes from a Neumaier
+  compensated sum (add and remove), so its error stays near eps × |mean| instead of
+  eps × (largest value that passed through the window). Besides the periodic resync, the
+  moments (M2) and OLS (Sxx, Syy) recompute exactly as soon as the co-moment falls below
+  `kCollapseRatio = 1e-6` of its peak since the last resync: after a large value leaves the
+  window, the sliding update keeps an absolute error of a few ulp of the old, larger value,
+  which would otherwise dominate a much smaller variance (NFR-06 (d) on data up to 1e6, and
+  the first M2 CI run, where differently drawn data made the OLS reference test miss on
+  MSVC and AppleClang). The extra O(w) passes happen only after such collapses. The spec's
+  periodic resync interval is unchanged.
+- **State save/load.** Each streaming class has `State save() const` and `load(const State&)`
+  (window contents oldest first, plus integer and real fields). A restored object continues
+  bit-identically; malformed states throw `std::invalid_argument`. The Python layer pickles
+  this with a version field (M3).
+- **Portable test data.** The C++ tests draw Gaussians by Box-Muller on `std::mt19937_64`,
+  whose output the standard fixes, instead of `std::normal_distribution`, whose output
+  differs between libstdc++, libc++ and the MSVC STL.
+- **Constant windows.** A window whose finite values are all equal has mean exactly that
+  value and variance exactly 0 (z-score NaN), tracked by a run-length counter. pandas does
+  the same; without it add/remove rounding leaves a variance near 1e-30 and z-scores of
+  order 1e14. Rolling OLS applies it to x (Sxx = 0, outputs NaN) and y (Syy = Sxy = 0,
+  beta 0, r2 NaN).
+- **Conditioning of sliding co-moments.** Between resyncs the sliding sums carry an absolute
+  error near 1e-14 times the data scale, so ratios (beta, r2) lose relative accuracy in
+  windows whose Sxx or Syy is tiny (for example two nearly equal points). The C++ OLS test
+  scales its tolerance by 1e-12 (1/Sxx + 1/Syy). The Python property tests against pandas
+  (NFR-06 (d), M3) need the same care; any tolerance choice there goes into this log.
+- **EWM.** One `Ewm` state drives `ewm_mean`, `ewm_var` and `ewm_std`. The update is pandas'
+  `ewmcov` recurrence with x = y, adjust=False and ignore_na=True, in the same operation
+  order, so the mean equals pandas' `ewm(...).mean()` update too. `nan_policy="propagate"`
+  has no window to leave, so the first NaN makes all later outputs NaN until `reset()`;
+  `min_periods = 0` behaves as 1. Infinities follow the recurrence (mean ±inf, then NaN once
+  both signs were seen; variance NaN from then on), as in pandas.
+- **Rolling OLS with include_current=False.** alpha, beta and r2 at t all come from W_{t-1},
+  not only the residual, so no output at t uses row t (DQ-01).
+- **Internal header.** `include/qkern/detail.hpp` (beyond the spec's layout) holds shared
+  constants and helpers: `kResyncInterval`, `kNaN`, `kInf`, the run-length counter and a
+  Neumaier compensated sum used by the resyncs. It is not part of the public API.
+- **Coverage and sanitizer scope at M2.** The C++ coverage gate covers `include/qkern` from
+  the GoogleTest run (98.8% of lines locally). `src/bindings` and the pytest run join it at
+  M3, when the binding layer is complete, as does the ASan/UBSan pytest run. The coverage
+  build uses `-fprofile-update=atomic`, because the 8-thread concurrency test otherwise
+  corrupts gcov counters (gcovr reported negative hit counts).
+- **Required checks.** The ruleset now requires `sanitizers` (aggregate of the `asan` and
+  `tsan` jobs) beside `ci`, as AC-W-02 asks for both.
+- **Benchmarks.** `qkern_bench` (Google Benchmark v1.10.0) is built by the `dev` preset family
+  and the `bench` preset; its numbers are informational. Function names are CamelCase so
+  `--benchmark_filter=Rolling` works; they carry a NOLINT for the naming check.
+- **TSan locally.** WSL2's kernel uses high-entropy ASLR like the CI runners. Locally the
+  concurrency tests run under `setarch -R` (no sudo needed); CI lowers `vm.mmap_rnd_bits`.

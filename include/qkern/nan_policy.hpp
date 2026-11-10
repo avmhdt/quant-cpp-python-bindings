@@ -47,6 +47,21 @@ inline void validate(const RollingConfig& cfg) {
   }
 }
 
+// Exponentially weighted kernels: smoothing factor alpha in (0, 1]; min_periods counts valid
+// observations seen so far (0 behaves like 1: no output before the first observation).
+struct EwmConfig {
+  double alpha = 0.5;
+  bool bias = false;
+  std::size_t min_periods = 0;
+  NanPolicy nan = NanPolicy::Skip;
+};
+
+inline void validate(const EwmConfig& cfg) {
+  if (!(cfg.alpha > 0.0 && cfg.alpha <= 1.0)) {
+    throw std::invalid_argument("alpha must satisfy 0 < alpha <= 1");
+  }
+}
+
 // nan_policy="raise" is checked over the whole input before any output is written.
 template <Real T>
 void check_no_nan(StridedView<T> x, NanPolicy nan) {

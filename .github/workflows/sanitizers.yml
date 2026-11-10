@@ -1,0 +1,66 @@
+name: sanitizers
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sanitizers-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+
+jobs:
+  asan:
+    name: asan (ASan + UBSan, gtest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ASAN_OPTIONS: detect_leaks=1:abort_on_error=1:strict_string_checks=1
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/CPM
+          key: cpm-asan-${{ hashFiles('tests/cpp/CMakeLists.txt') }}
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ninja-build clang-18
+      - run: cmake --preset asan
+      - run: cmake --build --preset asan
+      - run: ctest --preset asan
+
+  tsan:
+    name: tsan (ThreadSanitizer, concurrency tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/CPM
+          key: cpm-tsan-${{ hashFiles('tests/cpp/CMakeLists.txt') }}
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ninja-build clang-18
+      # Runner kernels use high-entropy ASLR, which TSan's shadow memory layout cannot map.
+      - run: sudo sysctl -w vm.mmap_rnd_bits=28
+      - run: cmake --preset tsan
+      - run: cmake --build --preset tsan
+      - run: ctest --preset tsan -R concurrency
+
+  sanitizers:
+    # Single required check for the main ruleset.
+    if: always()
+    needs: [asan, tsan]
+    runs-on: ubuntu-latest
+    steps:
+      - name: All sanitizer jobs passed
+        run: |
+          echo '${{ toJSON(needs) }}'
+          [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}" = "false" ]
