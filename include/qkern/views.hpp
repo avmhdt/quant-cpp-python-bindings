@@ -46,4 +46,15 @@ struct OutView {
   }
 };
 
+// A writable 1-D int64 view (observation counts), stride in elements.
+struct CountOutView {
+  std::int64_t* data = nullptr;
+  std::size_t size = 0;
+  std::ptrdiff_t stride = 1;
+
+  [[nodiscard]] std::int64_t& operator[](std::size_t i) const noexcept {
+    return data[static_cast<std::ptrdiff_t>(i) * stride];
+  }
+};
+
 }  // namespace qkern

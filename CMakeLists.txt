@@ -24,6 +24,7 @@ include(GNUInstallDirs)
 include(cmake/warnings.cmake)
 
 option(QKERN_BUILD_TESTS "Build the GoogleTest suite (downloads GoogleTest through CPM)" OFF)
+option(QKERN_BUILD_BENCH "Build the Google Benchmark binary (downloads it through CPM)" OFF)
 if(DEFINED SKBUILD)
   set(_qkern_python_default ON)
 else()
@@ -31,6 +32,13 @@ else()
 endif()
 option(QKERN_BUILD_PYTHON "Build the _qkern nanobind extension" ${_qkern_python_default})
 option(QKERN_STUBGEN "Generate _qkern.pyi with nanobind stubgen after building the module" OFF)
+if(PROJECT_IS_TOP_LEVEL AND NOT DEFINED SKBUILD)
+  set(_qkern_install_default ON)
+else()
+  set(_qkern_install_default OFF)
+endif()
+option(QKERN_INSTALL "Install qkern::core with a CMake package config (FR-16)"
+       ${_qkern_install_default})
 
 # ---------------------------------------------------------------------------------------
 # L1: header-only kernel core
@@ -40,6 +48,7 @@ configure_file(cmake/version.hpp.in "${PROJECT_BINARY_DIR}/generated/include/qke
 
 add_library(qkern_core INTERFACE)
 add_library(qkern::core ALIAS qkern_core)
+set_target_properties(qkern_core PROPERTIES EXPORT_NAME core)
 target_include_directories(
   qkern_core INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
                        $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/generated/include>
@@ -128,9 +137,38 @@ if(QKERN_BUILD_PYTHON)
 endif()
 
 # ---------------------------------------------------------------------------------------
-# Tests (GoogleTest through CPM; off by default so Python builds never download)
+# Install and export: find_package(qkern) gives qkern::core (FR-16)
+# ---------------------------------------------------------------------------------------
+if(QKERN_INSTALL)
+  include(CMakePackageConfigHelpers)
+  set(QKERN_CMAKE_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/qkern")
+  install(TARGETS qkern_core EXPORT qkernTargets)
+  install(DIRECTORY include/qkern DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+  install(FILES "${PROJECT_BINARY_DIR}/generated/include/qkern/version.hpp"
+          DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/qkern")
+  install(
+    EXPORT qkernTargets
+    NAMESPACE qkern::
+    DESTINATION "${QKERN_CMAKE_DIR}")
+  configure_package_config_file(cmake/qkernConfig.cmake.in
+                                "${PROJECT_BINARY_DIR}/qkernConfig.cmake"
+                                INSTALL_DESTINATION "${QKERN_CMAKE_DIR}")
+  # 0.x: minor versions may break the API, so only the same minor version is compatible.
+  write_basic_package_version_file("${PROJECT_BINARY_DIR}/qkernConfigVersion.cmake"
+                                   COMPATIBILITY SameMinorVersion ARCH_INDEPENDENT)
+  install(FILES "${PROJECT_BINARY_DIR}/qkernConfig.cmake"
+                "${PROJECT_BINARY_DIR}/qkernConfigVersion.cmake"
+          DESTINATION "${QKERN_CMAKE_DIR}")
+  install(FILES LICENSE DESTINATION "${QKERN_CMAKE_DIR}")
+endif()
+
+# ---------------------------------------------------------------------------------------
+# Tests and benchmarks (through CPM; off by default so Python builds never download)
 # ---------------------------------------------------------------------------------------
 if(QKERN_BUILD_TESTS)
   enable_testing()
   add_subdirectory(tests/cpp)
+endif()
+if(QKERN_BUILD_BENCH)
+  add_subdirectory(bench/cpp "${PROJECT_BINARY_DIR}/bench")
 endif()

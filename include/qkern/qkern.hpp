@@ -2,8 +2,12 @@
 // qkern/version.hpp, whose values CMake reads from pyproject.toml.
 #pragma once
 
+#include "qkern/detail.hpp"
+#include "qkern/ewm.hpp"
 #include "qkern/nan_policy.hpp"
 #include "qkern/ring_buffer.hpp"
+#include "qkern/rolling_minmax.hpp"
 #include "qkern/rolling_moments.hpp"
+#include "qkern/rolling_ols.hpp"
 #include "qkern/version.hpp"
 #include "qkern/views.hpp"

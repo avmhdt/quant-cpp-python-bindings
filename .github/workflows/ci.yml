@@ -111,6 +111,56 @@ jobs:
       - name: pytest
         run: uv run pytest
 
+  coverage:
+    # NFR-09, C++ part: line coverage of include/qkern from the GoogleTest suite. The binding
+    # layer (src/bindings) and the pytest run join this gate at M3.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/CPM
+          key: cpm-coverage-${{ hashFiles('tests/cpp/CMakeLists.txt') }}
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ninja-build g++-13
+      - run: cmake --preset coverage
+      - run: cmake --build --preset coverage
+      - run: ctest --preset coverage
+      - name: gcovr (fail under 90% lines)
+        run: |
+          mkdir -p coverage-html
+          uvx gcovr==8.8 --gcov-executable gcov-13 --root . --filter include/qkern             --exclude-throw-branches --print-summary --fail-under-line 90             --html-details coverage-html/index.html "$HOME/build/quant-cpp-python-bindings/coverage"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: coverage-html
+          path: coverage-html
+          retention-days: 14
+
+  cpp-consumer:
+    # FR-16: qkern::core through `cmake --install` + find_package, and through CPM.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ninja-build g++-13
+      - name: Install qkern::core
+        run: |
+          cmake -S . -B build/core -G Ninja -DCMAKE_CXX_COMPILER=g++-13 -DCMAKE_BUILD_TYPE=Release
+          cmake --install build/core --prefix "$RUNNER_TEMP/qkern-prefix"
+          find "$RUNNER_TEMP/qkern-prefix" -type f | sort
+      - name: Consumer via find_package
+        run: |
+          cmake -S examples/cpp_consumer -B build/consumer-fp -G Ninja -DCMAKE_CXX_COMPILER=g++-13             -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/qkern-prefix"
+          cmake --build build/consumer-fp
+          ctest --test-dir build/consumer-fp --output-on-failure
+      - name: Consumer via CPM (this checkout)
+        run: |
+          cmake -S examples/cpp_consumer -B build/consumer-cpm -G Ninja -DCMAKE_CXX_COMPILER=g++-13             -DQKERN_CONSUMER_USE_CPM=ON -DCPM_qkern_SOURCE="$GITHUB_WORKSPACE"
+          cmake --build build/consumer-cpm
+          ctest --test-dir build/consumer-cpm --output-on-failure
+
   abi3-spike:
     # M1 one-off spike (R-02): the cp312 wheel built by cibuildwheel must carry a real
     # limited-API extension. wheels.yml replaces this job at M5.
@@ -144,7 +194,7 @@ jobs:
   ci:
     # Single required check for the main ruleset: passes only if every job above passed.
     if: always()
-    needs: [lint, cpp, python, abi3-spike]
+    needs: [lint, cpp, python, coverage, cpp-consumer, abi3-spike]
     runs-on: ubuntu-latest
     steps:
       - name: All jobs passed

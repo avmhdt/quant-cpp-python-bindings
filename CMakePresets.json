@@ -14,9 +14,13 @@
     },
     {
       "name": "dev",
-      "displayName": "Debug, tests on, default compiler",
+      "displayName": "Debug, tests and benchmarks on, default compiler",
       "inherits": "base",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "QKERN_BUILD_TESTS": "ON" }
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "QKERN_BUILD_TESTS": "ON",
+        "QKERN_BUILD_BENCH": "ON"
+      }
     },
     {
       "name": "gcc13",
@@ -75,7 +79,7 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_CXX_COMPILER": "g++-13",
         "QKERN_BUILD_TESTS": "ON",
-        "CMAKE_CXX_FLAGS": "--coverage -O0 -fno-inline",
+        "CMAKE_CXX_FLAGS": "--coverage -fprofile-update=atomic -O0 -fno-inline",
         "CMAKE_EXE_LINKER_FLAGS": "--coverage",
         "CMAKE_SHARED_LINKER_FLAGS": "--coverage"
       }
