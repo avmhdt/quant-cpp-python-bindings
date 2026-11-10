@@ -1,0 +1,13 @@
+# mypy.stubtest allowlist for qkern._qkern (AC-W-09). Only errors that nanobind objects
+# cannot avoid are listed; see docs/decisions.md (M3, "stubtest").
+#
+# nanobind functions are nb_func objects, not Python functions, and expose no signature to
+# `inspect`; stubtest reports each as "not a function" with runtime signature
+# (*args, **kwargs). Their stub signatures come from nanobind's own stubgen and are checked
+# for drift by `qkdev stubs check`. Lower-case names are the module-level functions.
+qkern\._qkern\.[a-z_]+
+# nanobind classes use nanobind's metaclass (nb_type) and are disjoint bases at runtime.
+qkern\._qkern\.EWM
+qkern\._qkern\.RollingMinMax
+qkern\._qkern\.RollingMoments
+qkern\._qkern\.RollingOLS

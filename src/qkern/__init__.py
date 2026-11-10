@@ -1,17 +1,58 @@
-"""qkern: fast streaming and rolling time-series kernels (C++20 core, nanobind bindings)."""
+"""qkern: fast streaming and rolling time-series kernels (C++20 core, nanobind bindings).
 
-from qkern._api import ArrayIn, ArrowArrayExportable, build_info, rolling_mean, show_config
-from qkern._validate import NanPolicy
+Batch functions take NumPy arrays (1-D, or 2-D along axis 0) and return float64 arrays;
+streaming classes update one observation or one chunk at a time and give bit-identical
+results to the batch functions. Streaming objects are not thread-safe.
+"""
+
+from qkern._api import (
+    ArrayIn,
+    ArrowArrayExportable,
+    build_info,
+    ewm_mean,
+    ewm_std,
+    ewm_var,
+    rolling_max,
+    rolling_mean,
+    rolling_min,
+    rolling_moments,
+    rolling_ols,
+    rolling_std,
+    rolling_var,
+    rolling_zscore,
+    show_config,
+)
+from qkern._qkern import EWM, RollingMinMax, RollingMoments, RollingOLS
+from qkern._results import BBO, Moments, OLSResult
+from qkern._validate import Interp, NanPolicy
 
 #: Package version, compiled into the extension from pyproject.toml (FR-22).
 __version__: str = str(build_info()["version"])
 
 __all__ = [
+    "BBO",
+    "EWM",
     "ArrayIn",
     "ArrowArrayExportable",
+    "Interp",
+    "Moments",
     "NanPolicy",
+    "OLSResult",
+    "RollingMinMax",
+    "RollingMoments",
+    "RollingOLS",
     "__version__",
     "build_info",
+    "ewm_mean",
+    "ewm_std",
+    "ewm_var",
+    "rolling_max",
     "rolling_mean",
+    "rolling_min",
+    "rolling_moments",
+    "rolling_ols",
+    "rolling_std",
+    "rolling_var",
+    "rolling_zscore",
     "show_config",
 ]

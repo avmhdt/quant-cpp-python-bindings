@@ -29,3 +29,12 @@ version is 0.x, a minor version bump may break the API; every break is listed un
   builds against it with `find_package` or CPM.
 - Google Benchmark binary `qkern_bench`; ASan/UBSan and TSan CI jobs; C++ coverage gate.
 - `save()`/`load()` on every streaming state class (bit-identical continuation).
+- Python API: `rolling_var`, `rolling_std`, `rolling_moments`, `rolling_zscore`, `ewm_mean`,
+  `ewm_var`, `ewm_std`, `rolling_min`, `rolling_max`, `rolling_ols`, with 2-D inputs along
+  axis 0, `out=`, integer/bool inputs converted once, and the GIL released for 1,024 or more
+  elements; result tuples `Moments`, `OLSResult`, `BBO`.
+- Streaming classes `RollingMoments`, `EWM`, `RollingMinMax`, `RollingOLS` with `update`,
+  `update_many`, `reset`, read-only properties, pickling and copies.
+- `qkern.testing.reference` covers every kernel above.
+- Property, semantics, zero-copy, GIL, numerics and golden test suites; docs page
+  `docs/semantics.md`.

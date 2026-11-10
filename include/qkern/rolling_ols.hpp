@@ -65,8 +65,10 @@ class RollingOls {
     if (!(syy_v > 0.0)) {
       return kNaN;
     }
+    // (Sxy / Sxx) (Sxy / Syy) rather than Sxy^2 / (Sxx Syy): no intermediate underflow or
+    // overflow for very small or very large data.
     const double s = sxy();
-    return std::min((s * s) / (sxx() * syy_v), 1.0);
+    return std::min((s / sxx()) * (s / syy_v), 1.0);
   }
 
   // Residual of a pair against the current fit (the pair is not pushed).
