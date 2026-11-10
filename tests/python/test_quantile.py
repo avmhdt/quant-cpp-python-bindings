@@ -28,8 +28,12 @@ def test_matches_pandas_for_every_interpolation(interpolation: str, data: st.Dat
     q = data.draw(st.sampled_from([0.0, 0.1, 0.25, 0.5, 0.75, 0.9, 1.0]) | st.floats(0.0, 1.0))
     got = qkern.rolling_quantile(x, window, q, min_periods=mp, interpolation=interpolation)  # type: ignore[arg-type]
     roll: Any = pd.Series(x).rolling(window, min_periods=mp)
-    want = roll.quantile(q, interpolation=interpolation)
-    assert_close(got, want.to_numpy(), rtol=1e-12)
+    want = roll.quantile(q, interpolation=interpolation).to_numpy()
+    # Linear interpolation lo + (hi - lo) * frac rounds once on the scale of the data. pandas'
+    # compiled code may fuse that multiply-add (FMA, seen on macOS arm64) where qkern never
+    # does (DQ-08), so allow one rounding relative to the data's magnitude.
+    scale = max(1.0, float(np.nanmax(np.abs(x), initial=0.0)))
+    np.testing.assert_allclose(got, want, rtol=1e-12, atol=4e-16 * scale)
 
 
 @given(data=st.data())

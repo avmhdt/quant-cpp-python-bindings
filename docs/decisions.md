@@ -261,6 +261,10 @@ or keys ever go in this file.
   window contents only, since the quantile depends on nothing else. A hypothesis case found
   that a value arriving when the low heap had emptied must still be compared with the high
   heap's top; fixed with a regression test.
+- **Quantile vs pandas tolerance.** On macOS arm64 pandas' compiled rolling quantile fuses
+  the interpolation's multiply-add (FMA); qkern never does (DQ-08). The comparison allows one
+  rounding relative to the data's magnitude (atol 4e-16 · max|x|, rtol 1e-12); found in CI
+  for q = 0.9999999999999999 on the window {0, -16385}.
 - **Arrow input (D-07 option a).** A vendored copy of the Arrow C Data and C Stream
   Interface structs (`include/qkern/arrow_c_abi.h`, Apache-2.0 notice kept) and a C++
   importer; no pyarrow dependency. Polars 2.1 series expose only `__arrow_c_stream__`, not
