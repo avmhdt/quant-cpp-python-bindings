@@ -17,6 +17,8 @@ project(
 if(PROJECT_IS_TOP_LEVEL)
   set(CMAKE_CXX_EXTENSIONS OFF)
 endif()
+# No C++20 modules here; skip dependency scanning (it needs clang-scan-deps with Clang).
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 include(GNUInstallDirs)
 include(cmake/warnings.cmake)

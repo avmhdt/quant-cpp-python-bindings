@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 
 import numpy as np
 import pytest
@@ -14,8 +15,16 @@ from tools.qkdev import fixtures
 def test_fixture_schema_and_determinism(fx: fixtures.Fixture) -> None:
     path = fixtures.fixture_path(fx)
     assert path.exists(), f"run: uv run python -m tools.qkdev fixtures make ({path.name})"
-    assert path.read_bytes() == fixtures.fixture_bytes(fx)
     data = fixtures.load(fx.name)
+    if sys.platform == "linux":
+        # DQ-09 byte-identity is defined on Linux (the CI lint job runs `fixtures make --check`).
+        assert path.read_bytes() == fixtures.fixture_bytes(fx)
+    else:
+        # NumPy's normal sampler can call libm in its tail, so other platforms may differ in
+        # the last bit; the committed values must still agree closely.
+        fresh = fx.build(np.random.default_rng(fx.seed), fx.params)
+        for key, values in fresh.items():
+            np.testing.assert_allclose(data[key].astype(np.float64), values, rtol=1e-12)
     assert data["x"].dtype == np.float64
     assert data["x"].shape == (int(fx.params["n"]),)
     if "y" in data:

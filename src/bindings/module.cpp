@@ -51,7 +51,11 @@ nb::typed<nb::dict, nb::str, nb::object> build_info() {
   d["git_sha"] = QKERN_GIT_SHA;
   d["compiler"] = QKERN_COMPILER_ID;
   d["compiler_version"] = QKERN_COMPILER_VERSION;
+#if defined(_MSVC_LANG)
+  d["cxx_standard"] = static_cast<std::int64_t>(_MSVC_LANG);  // MSVC keeps __cplusplus at 199711
+#else
   d["cxx_standard"] = static_cast<std::int64_t>(__cplusplus);
+#endif
   d["build_type"] = QKERN_BUILD_TYPE;
   d["fp_flags"] = QKERN_FP_FLAGS;
   d["nanobind_version"] = QKERN_NANOBIND_VERSION;

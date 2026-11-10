@@ -81,7 +81,13 @@ def _constant_segments(rng: np.random.Generator, p: dict[str, float | int]) -> A
 
 
 def _student_t(rng: np.random.Generator, p: dict[str, float | int]) -> Arrays:
-    return {"x": rng.standard_t(float(p["df"]), int(p["n"]))}
+    # Z / sqrt(chi2_df / df), with chi2_df as a sum of df squared normals. Only sqrt is
+    # used, which IEEE 754 rounds exactly, so the bytes do not depend on the platform's libm
+    # (numpy's standard_t calls log/exp and differs in the last bit on macOS).
+    n, df = int(p["n"]), int(p["df"])
+    z = rng.standard_normal(n)
+    chi2 = np.square(rng.standard_normal((df, n))).sum(axis=0)
+    return {"x": z / np.sqrt(chi2 / df)}
 
 
 def _pairs(rng: np.random.Generator, p: dict[str, float | int]) -> Arrays:
@@ -138,6 +144,7 @@ def fixture_bytes(fx: Fixture) -> bytes:
         for key in sorted(members):
             info = zipfile.ZipInfo(f"{key}.npy", date_time=_ZIP_DATE)
             info.external_attr = 0o644 << 16
+            info.create_system = 3  # Unix; ZipInfo defaults to 0 on Windows
             zf.writestr(info, _npy_bytes(members[key]))
     return out.getvalue()
 

@@ -13,7 +13,7 @@ unless every file is byte-identical to its generator's output. Definitions and s
 | `series_nan_runs_10k.npz` | N(0, 1) with 5% isolated NaN plus 8 NaN runs of length 1–300 |
 | `series_inf_spikes_5k.npz` | N(0, 1) with 10 `+inf` and 10 `-inf` spikes and one adjacent pair |
 | `series_constant_segments_5k.npz` | Constant runs (length 1–500) mixed with noise segments |
-| `series_student_t3_10k.npz` | Student-t, 3 degrees of freedom |
+| `series_student_t3_10k.npz` | Student-t, 3 degrees of freedom, built as Z / sqrt(chi2_3 / 3) from normals (no libm) |
 | `series_pairs_corr_10k.npz` | `x`, `y = beta x + 0.3 noise`, beta 0.8 then 1.5 from index 6,000 |
 
 Schema: `x` (float64), optional `y` (float64), and `meta`, a 0-d string array holding JSON
