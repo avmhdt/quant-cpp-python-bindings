@@ -288,3 +288,34 @@ or keys ever go in this file.
   placeholder `docs/benchmarks.md`; no timing results are committed yet. The reference run,
   `results/bench/*.json` and the regenerated page are the remaining M4 work after the window.
 
+### M5 (2026-11-09)
+
+- **Workflows.** `wheels.yml` builds the five targets with cibuildwheel v4.3.5 (Linux x86_64
+  and aarch64 on native runners, macOS arm64, macOS x86_64 cross-built on arm64 and tested
+  under Rosetta per R-05, Windows AMD64). It fails unless the cp312 wheel is tagged abi3 and
+  contains `_qkern.abi3.so`/`.pyd`, no separate 3.13/3.14 wheels exist (cibuildwheel tests the
+  abi3 wheel on them), `abi3audit --strict` passes, every wheel is at most 1.5 MB (NFR-12)
+  and `twine check --strict` passes. It runs on pushes to main, by hand, from `release.yml`,
+  and on pull requests labelled `wheels`. The M1 `abi3-spike` job is retired.
+- **sdist.** Built, checked, and installed from source with GCC (Linux) and MSVC (Windows),
+  then smoke-tested (`tools/qkdev/smoke.py`), in `wheels.yml` (AC-W-11's CI part).
+- **release.yml.** Tag check (`qkdev release check`), wheels and sdist, TestPyPI through
+  Trusted Publishing (environment `testpypi`), a TestPyPI install-and-smoke gate on three OSes,
+  PyPI (environment `pypi`, owner approval, PEP 740 attestations), a PyPI install-and-smoke
+  matrix including Linux aarch64 (AC-W-01's `pypi-smoke`), a GitHub Release whose body is the
+  CHANGELOG section, and a docs deploy. No tokens anywhere. Agents never push tags.
+- **Docs.** MkDocs Material with mkdocstrings (static analysis of the sources and the committed
+  stub). `docs.yml` builds with `--strict` and runs the examples on the Quickstart and
+  Streaming pages on every push and pull request; it deploys to Pages only from a release or
+  by hand. The build warns that Material for MkDocs reaches end of life on 2027-05-05, with
+  Zensical as its successor (R-11): versions stay pinned in `uv.lock` and a migration can
+  follow after 0.x.
+- **Pinned Linux runners.** `ubuntu-latest` moved to Ubuntu 26.04 during M5, which no longer
+  ships clang-18 (and every job then fell back to a slow apt mirror). All Linux jobs pin
+  `ubuntu-24.04`, the image the spec names; lint takes clang-format and clang-tidy 18.1.8
+  from PyPI.
+- **Test data range.** Hypothesis series flush magnitudes below 1e-100 to 0: deviations of
+  such values square into subnormals (found at 1e-160 on aarch64), where no algorithm or
+  reference keeps relative accuracy. The documented domain is unchanged; this only keeps the
+  oracles meaningful.
+

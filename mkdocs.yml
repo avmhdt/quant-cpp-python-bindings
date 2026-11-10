@@ -1,0 +1,59 @@
+site_name: qkern
+site_description: Streaming and rolling time-series kernels for Python, with a C++20 core
+site_url: https://avmhdt.github.io/quant-cpp-python-bindings/
+repo_url: https://github.com/avmhdt/quant-cpp-python-bindings
+repo_name: avmhdt/quant-cpp-python-bindings
+edit_uri: ""
+strict: true
+exclude_docs: |
+  assets/bench/.gitkeep
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - content.code.copy
+  palette:
+    - scheme: default
+      toggle: { icon: material/brightness-7, name: Dark mode }
+    - scheme: slate
+      toggle: { icon: material/brightness-4, name: Light mode }
+
+nav:
+  - Home: index.md
+  - Install: install.md
+  - Quickstart: quickstart.md
+  - Semantics: semantics.md
+  - Batch vs streaming: streaming.md
+  - API reference: api.md
+  - Design: design.md
+  - Benchmarks: benchmarks.md
+  - C++ API: cpp.md
+  - Using qkern in other repos: users.md
+  - Adoption: adoption.md
+  - Changelog: changelog.md
+  - Contributing: contributing.md
+  - Decision log: decisions.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            allow_inspection: false
+            show_source: false
+            docstring_style: google
+            members_order: source
+            show_signature_annotations: true
+            separate_signature: true
+            filters: ["!^_"]
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc: { permalink: true }
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.snippets: { base_path: ["."], check_paths: true }
