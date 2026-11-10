@@ -115,8 +115,12 @@ mypy_path = ["src", "tests/python"]
 explicit_package_bases = true
 
 [[tool.mypy.overrides]]
-module = ["pyarrow.*", "polars.*"]
+module = ["pyarrow.*", "polars.*", "numba.*", "bottleneck.*", "matplotlib.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["bench.py.baselines.numba_impl"]
+disallow_untyped_decorators = false
 
 [tool.coverage.run]
 branch = true

@@ -19,14 +19,14 @@ namespace {
 
 using MaybeOut = std::optional<AnyOut>;
 
-std::optional<NumpyF64> min_fn(const AnyIn& x, std::int64_t window,
+std::optional<NumpyF64> min_fn(nb::handle x, std::int64_t window,
                                std::optional<std::int64_t> min_periods,
                                const std::string& nan_policy, const MaybeOut& out) {
   const RollingConfig cfg = make_rolling_config(window, min_periods, 1, nan_policy);
   return run_unary(x, out, [&](auto in, OutView o) { rolling_min(in, o, cfg); });
 }
 
-std::optional<NumpyF64> max_fn(const AnyIn& x, std::int64_t window,
+std::optional<NumpyF64> max_fn(nb::handle x, std::int64_t window,
                                std::optional<std::int64_t> min_periods,
                                const std::string& nan_policy, const MaybeOut& out) {
   const RollingConfig cfg = make_rolling_config(window, min_periods, 1, nan_policy);

@@ -187,6 +187,22 @@ jobs:
           cmake --build build/consumer-cpm
           ctest --test-dir build/consumer-cpm --output-on-failure
 
+  bench-smoke:
+    # Informational: benchmarks at small sizes plus one `bench run --quick` + `bench report`
+    # round trip into a temporary directory. Fails on errors only, never on timings.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      QKERN_BENCH_MAX_THREADS: "2"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --locked --group bench
+      - run: uv run pytest bench/py/test_bench_smoke.py -p no:cacheprovider --benchmark-min-rounds=3
+
   abi3-spike:
     # M1 one-off spike (R-02): the cp312 wheel built by cibuildwheel must carry a real
     # limited-API extension. wheels.yml replaces this job at M5.
@@ -220,7 +236,7 @@ jobs:
   ci:
     # Single required check for the main ruleset: passes only if every job above passed.
     if: always()
-    needs: [lint, cpp, python, coverage, cpp-consumer, abi3-spike]
+    needs: [lint, cpp, python, coverage, cpp-consumer, bench-smoke, abi3-spike]
     runs-on: ubuntu-latest
     steps:
       - name: All jobs passed

@@ -23,28 +23,28 @@ namespace {
 
 using MaybeOut = std::optional<AnyOut>;
 
-std::optional<NumpyF64> mean_fn(const AnyIn& x, std::int64_t window,
+std::optional<NumpyF64> mean_fn(nb::handle x, std::int64_t window,
                                 std::optional<std::int64_t> min_periods,
                                 const std::string& nan_policy, const MaybeOut& out) {
   const RollingConfig cfg = make_rolling_config(window, min_periods, 1, nan_policy);
   return run_unary(x, out, [&](auto in, OutView o) { rolling_mean(in, o, cfg); });
 }
 
-std::optional<NumpyF64> var_fn(const AnyIn& x, std::int64_t window,
+std::optional<NumpyF64> var_fn(nb::handle x, std::int64_t window,
                                std::optional<std::int64_t> min_periods, std::int64_t ddof,
                                const std::string& nan_policy, const MaybeOut& out) {
   const RollingConfig cfg = make_rolling_config(window, min_periods, ddof, nan_policy);
   return run_unary(x, out, [&](auto in, OutView o) { rolling_var(in, o, cfg); });
 }
 
-std::optional<NumpyF64> std_fn(const AnyIn& x, std::int64_t window,
+std::optional<NumpyF64> std_fn(nb::handle x, std::int64_t window,
                                std::optional<std::int64_t> min_periods, std::int64_t ddof,
                                const std::string& nan_policy, const MaybeOut& out) {
   const RollingConfig cfg = make_rolling_config(window, min_periods, ddof, nan_policy);
   return run_unary(x, out, [&](auto in, OutView o) { rolling_std(in, o, cfg); });
 }
 
-std::optional<NumpyF64> zscore_fn(const AnyIn& x, std::int64_t window,
+std::optional<NumpyF64> zscore_fn(nb::handle x, std::int64_t window,
                                   std::optional<std::int64_t> min_periods, std::int64_t ddof,
                                   bool include_current, const std::string& nan_policy,
                                   const MaybeOut& out) {
@@ -53,7 +53,7 @@ std::optional<NumpyF64> zscore_fn(const AnyIn& x, std::int64_t window,
                    [&](auto in, OutView o) { rolling_zscore(in, o, cfg, include_current); });
 }
 
-std::tuple<NumpyF64, NumpyF64, NumpyI64> moments_fn(const AnyIn& x, std::int64_t window,
+std::tuple<NumpyF64, NumpyF64, NumpyI64> moments_fn(nb::handle x, std::int64_t window,
                                                     std::optional<std::int64_t> min_periods,
                                                     std::int64_t ddof,
                                                     const std::string& nan_policy) {

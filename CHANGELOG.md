@@ -38,3 +38,9 @@ version is 0.x, a minor version bump may break the API; every break is listed un
 - `qkern.testing.reference` covers every kernel above.
 - Property, semantics, zero-copy, GIL, numerics and golden test suites; docs page
   `docs/semantics.md`.
+- `qkern.rolling_quantile` and `qkern.rolling_median` (all five pandas interpolation modes)
+  and the `RollingQuantile` streaming class.
+- Arrow input through the PyCapsule interface: pyarrow arrays and single-chunk Polars series
+  are read in place, nulls acting as NaN.
+- Benchmark harness: `python -m tools.qkdev bench run` / `bench report`, comparator baselines
+  for pure Python, NumPy, pandas, Numba, Polars and bottleneck, and `bench/config.toml`.

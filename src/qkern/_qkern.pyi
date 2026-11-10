@@ -26,25 +26,25 @@ def _debug_counters() -> dict[str, int]:
 def _reset_debug_counters() -> None:
     """Private test hook: zero the debug counters."""
 
-def rolling_mean(x: Annotated[NDArray[Any], dict(device='cpu', writable=False)], window: int, min_periods: int | None, nan_policy: str, out: Annotated[NDArray[numpy.float64], dict(device='cpu')] | None) -> NDArray[numpy.float64] | None:
+def rolling_mean(x: object, window: int, min_periods: int | None, nan_policy: str, out: Annotated[NDArray[numpy.float64], dict(device='cpu')] | None) -> NDArray[numpy.float64] | None:
     """Rolling mean (see qkern.rolling_mean). Returns None when out is given."""
 
-def rolling_var(x: Annotated[NDArray[Any], dict(device='cpu', writable=False)], window: int, min_periods: int | None, ddof: int, nan_policy: str, out: Annotated[NDArray[numpy.float64], dict(device='cpu')] | None) -> NDArray[numpy.float64] | None:
+def rolling_var(x: object, window: int, min_periods: int | None, ddof: int, nan_policy: str, out: Annotated[NDArray[numpy.float64], dict(device='cpu')] | None) -> NDArray[numpy.float64] | None:
     """
     Rolling variance (see qkern.rolling_var). Returns None when out is given.
     """
 
-def rolling_std(x: Annotated[NDArray[Any], dict(device='cpu', writable=False)], window: int, min_periods: int | None, ddof: int, nan_policy: str, out: Annotated[NDArray[numpy.float64], dict(device='cpu')] | None) -> NDArray[numpy.float64] | None:
+def rolling_std(x: object, window: int, min_periods: int | None, ddof: int, nan_policy: str, out: Annotated[NDArray[numpy.float64], dict(device='cpu')] | None) -> NDArray[numpy.float64] | None:
     """
     Rolling standard deviation (see qkern.rolling_std). Returns None when out is given.
     """
 
-def rolling_zscore(x: Annotated[NDArray[Any], dict(device='cpu', writable=False)], window: int, min_periods: int | None, ddof: int, include_current: bool, nan_policy: str, out: Annotated[NDArray[numpy.float64], dict(device='cpu')] | None) -> NDArray[numpy.float64] | None:
+def rolling_zscore(x: object, window: int, min_periods: int | None, ddof: int, include_current: bool, nan_policy: str, out: Annotated[NDArray[numpy.float64], dict(device='cpu')] | None) -> NDArray[numpy.float64] | None:
     """
     Rolling z-score (see qkern.rolling_zscore). Returns None when out is given.
     """
 
-def rolling_moments(x: Annotated[NDArray[Any], dict(device='cpu', writable=False)], window: int, min_periods: int | None, ddof: int, nan_policy: str) -> tuple[NDArray[numpy.float64], NDArray[numpy.float64], NDArray[numpy.int64]]:
+def rolling_moments(x: object, window: int, min_periods: int | None, ddof: int, nan_policy: str) -> tuple[NDArray[numpy.float64], NDArray[numpy.float64], NDArray[numpy.int64]]:
     """
     Rolling mean, variance and valid count in one pass (see qkern.rolling_moments).
     """
@@ -54,28 +54,28 @@ def _resolve_alpha(alpha: float | None, span: float | None, halflife: float | No
     Smoothing factor from exactly one of alpha, span (2 / (span + 1)) or halflife (1 - exp(-ln 2 / halflife)).
     """
 
-def ewm_mean(x: Annotated[NDArray[Any], dict(device='cpu', writable=False)], alpha: float, min_periods: int, nan_policy: str, out: Annotated[NDArray[numpy.float64], dict(device='cpu')] | None) -> NDArray[numpy.float64] | None:
+def ewm_mean(x: object, alpha: float, min_periods: int, nan_policy: str, out: Annotated[NDArray[numpy.float64], dict(device='cpu')] | None) -> NDArray[numpy.float64] | None:
     """EWM mean (see qkern.ewm_mean). Returns None when out is given."""
 
-def ewm_var(x: Annotated[NDArray[Any], dict(device='cpu', writable=False)], alpha: float, bias: bool, min_periods: int, nan_policy: str, out: Annotated[NDArray[numpy.float64], dict(device='cpu')] | None) -> NDArray[numpy.float64] | None:
+def ewm_var(x: object, alpha: float, bias: bool, min_periods: int, nan_policy: str, out: Annotated[NDArray[numpy.float64], dict(device='cpu')] | None) -> NDArray[numpy.float64] | None:
     """EWM variance (see qkern.ewm_var). Returns None when out is given."""
 
-def ewm_std(x: Annotated[NDArray[Any], dict(device='cpu', writable=False)], alpha: float, bias: bool, min_periods: int, nan_policy: str, out: Annotated[NDArray[numpy.float64], dict(device='cpu')] | None) -> NDArray[numpy.float64] | None:
+def ewm_std(x: object, alpha: float, bias: bool, min_periods: int, nan_policy: str, out: Annotated[NDArray[numpy.float64], dict(device='cpu')] | None) -> NDArray[numpy.float64] | None:
     """
     EWM standard deviation (see qkern.ewm_std). Returns None when out is given.
     """
 
-def rolling_min(x: Annotated[NDArray[Any], dict(device='cpu', writable=False)], window: int, min_periods: int | None, nan_policy: str, out: Annotated[NDArray[numpy.float64], dict(device='cpu')] | None) -> NDArray[numpy.float64] | None:
+def rolling_min(x: object, window: int, min_periods: int | None, nan_policy: str, out: Annotated[NDArray[numpy.float64], dict(device='cpu')] | None) -> NDArray[numpy.float64] | None:
     """
     Rolling minimum (see qkern.rolling_min). Returns None when out is given.
     """
 
-def rolling_max(x: Annotated[NDArray[Any], dict(device='cpu', writable=False)], window: int, min_periods: int | None, nan_policy: str, out: Annotated[NDArray[numpy.float64], dict(device='cpu')] | None) -> NDArray[numpy.float64] | None:
+def rolling_max(x: object, window: int, min_periods: int | None, nan_policy: str, out: Annotated[NDArray[numpy.float64], dict(device='cpu')] | None) -> NDArray[numpy.float64] | None:
     """
     Rolling maximum (see qkern.rolling_max). Returns None when out is given.
     """
 
-def rolling_ols(y: Annotated[NDArray[Any], dict(device='cpu', writable=False)], x: Annotated[NDArray[Any], dict(device='cpu', writable=False)], window: int, min_periods: int | None, include_current: bool, nan_policy: str) -> tuple[NDArray[numpy.float64], NDArray[numpy.float64], NDArray[numpy.float64], NDArray[numpy.float64]]:
+def rolling_ols(y: object, x: object, window: int, min_periods: int | None, include_current: bool, nan_policy: str) -> tuple[NDArray[numpy.float64], NDArray[numpy.float64], NDArray[numpy.float64], NDArray[numpy.float64]]:
     """
     Rolling OLS of y on x with intercept: (alpha, beta, resid, r2) (see qkern.rolling_ols).
     """
@@ -257,6 +257,70 @@ class RollingOLS:
 
     @property
     def ready(self) -> bool: ...
+
+    @property
+    def window(self) -> int: ...
+
+    @property
+    def min_periods(self) -> int: ...
+
+    @property
+    def nan_policy(self) -> str: ...
+
+    def __getstate__(self) -> dict[str, object]: ...
+
+    def __setstate__(self, arg: dict[str, object], /) -> None: ...
+
+    def __repr__(self) -> str: ...
+
+class _ArrowInput:
+    """Zero-copy view of a float64/float32 Arrow array (PyCapsule interface)."""
+
+    @staticmethod
+    def from_array(schema: object, array: object) -> _ArrowInput:
+        """Wrap the capsules returned by __arrow_c_array__()."""
+
+    @staticmethod
+    def from_stream(stream: object) -> _ArrowInput:
+        """Wrap the single chunk of the stream returned by __arrow_c_stream__()."""
+
+    def __len__(self) -> int: ...
+
+def rolling_quantile(x: object, window: int, min_periods: int | None, q: float, interpolation: str, nan_policy: str, out: Annotated[NDArray[numpy.float64], dict(device='cpu')] | None) -> NDArray[numpy.float64] | None:
+    """
+    Rolling quantile (see qkern.rolling_quantile). Returns None when out is given.
+    """
+
+class RollingQuantile:
+    """
+    Streaming rolling quantile (two heaps with lazy deletion; same semantics as qkern.rolling_quantile).
+    """
+
+    def __init__(self, window: int, q: float, *, interpolation: str = 'linear', min_periods: int | None = None, nan_policy: str = 'skip') -> None: ...
+
+    def update(self, x: float) -> None:
+        """Push one observation."""
+
+    def update_many(self, x: numpy.typing.NDArray[Any]) -> numpy.typing.NDArray[numpy.float64]:
+        """Push every element of a 1-D array; returns the per-element quantile."""
+
+    def reset(self) -> None:
+        """Forget every observation."""
+
+    @property
+    def value(self) -> float: ...
+
+    @property
+    def count(self) -> int: ...
+
+    @property
+    def ready(self) -> bool: ...
+
+    @property
+    def q(self) -> float: ...
+
+    @property
+    def interpolation(self) -> str: ...
 
     @property
     def window(self) -> int: ...

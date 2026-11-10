@@ -103,4 +103,5 @@ NB_MODULE(_qkern, m) {  // NOLINT(*-avoid-non-const-global-variables)
   qb::bind_minmax(m);
   qb::bind_ols(m);
   qb::bind_streaming(m);
+  qb::bind_quantile(m);
 }

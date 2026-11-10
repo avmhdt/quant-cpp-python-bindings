@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 import typer
 
+from tools.qkdev import bench as bench_mod
 from tools.qkdev import data as data_mod
 from tools.qkdev import fixtures as fixtures_mod
 from tools.qkdev import golden as golden_mod
@@ -19,6 +21,8 @@ stubs_app = typer.Typer(no_args_is_help=True, help="Type stubs for the extension
 app.add_typer(fixtures_app, name="fixtures")
 app.add_typer(data_app, name="data")
 app.add_typer(stubs_app, name="stubs")
+bench_app = typer.Typer(no_args_is_help=True, help="Benchmarks (bench dependency group).")
+app.add_typer(bench_app, name="bench")
 
 log = logging.getLogger("qkdev")
 
@@ -78,6 +82,39 @@ def stubs_check(
 ) -> None:
     """Fail if src/qkern/_qkern.pyi differs from freshly generated stubs."""
     raise typer.Exit(stubs_mod.check(write=write))
+
+
+@bench_app.command("run")
+def bench_run(
+    suite: str = typer.Option("all", help="micro, overhead, threads, real or all"),
+    config: Path = typer.Option(Path("bench/config.toml")),
+    out: Path | None = typer.Option(None, help="Default: $QKERN_BENCH_OUT (results/bench)"),
+    quick: bool = typer.Option(False, "--quick", help="Small sizes, fewer repeats."),
+    allow_dirty: bool = typer.Option(False, "--allow-dirty"),
+) -> None:
+    """Time qkern against the comparators; writes JSON and appends bench_log.csv."""
+    settings = load_settings()
+    if suite not in (*bench_mod.SUITES, "all"):
+        raise typer.BadParameter(f"unknown suite {suite!r}")
+    bench_mod.run(
+        settings,
+        suite,
+        config,
+        out or settings.qkern_bench_out,
+        quick=quick,
+        allow_dirty=allow_dirty,
+    )
+
+
+@bench_app.command("report")
+def bench_report(
+    in_: Path = typer.Option(..., "--in", help="results/bench/<file>.json"),
+    docs: Path = typer.Option(Path("docs/benchmarks.md")),
+    figures: Path = typer.Option(Path("docs/assets/bench")),
+    allow_dirty: bool = typer.Option(False, "--allow-dirty"),
+) -> None:
+    """Regenerate docs/benchmarks.md and the figures from one results file."""
+    bench_mod.report(in_, docs, figures, allow_dirty=allow_dirty)
 
 
 if __name__ == "__main__":

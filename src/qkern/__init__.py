@@ -8,21 +8,24 @@ results to the batch functions. Streaming objects are not thread-safe.
 from qkern._api import (
     ArrayIn,
     ArrowArrayExportable,
+    ArrowStreamExportable,
     build_info,
     ewm_mean,
     ewm_std,
     ewm_var,
     rolling_max,
     rolling_mean,
+    rolling_median,
     rolling_min,
     rolling_moments,
     rolling_ols,
+    rolling_quantile,
     rolling_std,
     rolling_var,
     rolling_zscore,
     show_config,
 )
-from qkern._qkern import EWM, RollingMinMax, RollingMoments, RollingOLS
+from qkern._qkern import EWM, RollingMinMax, RollingMoments, RollingOLS, RollingQuantile
 from qkern._results import BBO, Moments, OLSResult
 from qkern._validate import Interp, NanPolicy
 
@@ -34,6 +37,7 @@ __all__ = [
     "EWM",
     "ArrayIn",
     "ArrowArrayExportable",
+    "ArrowStreamExportable",
     "Interp",
     "Moments",
     "NanPolicy",
@@ -41,6 +45,7 @@ __all__ = [
     "RollingMinMax",
     "RollingMoments",
     "RollingOLS",
+    "RollingQuantile",
     "__version__",
     "build_info",
     "ewm_mean",
@@ -48,9 +53,11 @@ __all__ = [
     "ewm_var",
     "rolling_max",
     "rolling_mean",
+    "rolling_median",
     "rolling_min",
     "rolling_moments",
     "rolling_ols",
+    "rolling_quantile",
     "rolling_std",
     "rolling_var",
     "rolling_zscore",

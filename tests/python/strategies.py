@@ -119,6 +119,18 @@ ROLLING: tuple[Unary, ...] = (
     ),
     Unary("rolling_min", "rolling", qkern.rolling_min, reference.rolling_min),
     Unary("rolling_max", "rolling", qkern.rolling_max, reference.rolling_max),
+    Unary(
+        "rolling_median",
+        "rolling",
+        lambda x, w, **kw: qkern.rolling_quantile(x, w, 0.5, **kw),
+        lambda x, w, **kw: reference.rolling_quantile(x, w, 0.5, **kw),
+    ),
+    Unary(
+        "rolling_quantile_q0.3_nearest",
+        "rolling",
+        lambda x, w, **kw: qkern.rolling_quantile(x, w, 0.3, interpolation="nearest", **kw),
+        lambda x, w, **kw: reference.rolling_quantile(x, w, 0.3, interpolation="nearest", **kw),
+    ),
 )
 
 

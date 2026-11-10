@@ -19,22 +19,20 @@ namespace {
 
 using MaybeOut = std::optional<AnyOut>;
 
-std::optional<NumpyF64> ewm_mean_fn(const AnyIn& x, double alpha, std::int64_t min_periods,
+std::optional<NumpyF64> ewm_mean_fn(nb::handle x, double alpha, std::int64_t min_periods,
                                     const std::string& nan_policy, const MaybeOut& out) {
   const EwmConfig cfg = make_ewm_config(alpha, false, min_periods, nan_policy);
   return run_unary(x, out, [&](auto in, OutView o) { ewm_mean(in, o, cfg); });
 }
 
-std::optional<NumpyF64> ewm_var_fn(const AnyIn& x, double alpha, bool bias,
-                                   std::int64_t min_periods, const std::string& nan_policy,
-                                   const MaybeOut& out) {
+std::optional<NumpyF64> ewm_var_fn(nb::handle x, double alpha, bool bias, std::int64_t min_periods,
+                                   const std::string& nan_policy, const MaybeOut& out) {
   const EwmConfig cfg = make_ewm_config(alpha, bias, min_periods, nan_policy);
   return run_unary(x, out, [&](auto in, OutView o) { ewm_var(in, o, cfg); });
 }
 
-std::optional<NumpyF64> ewm_std_fn(const AnyIn& x, double alpha, bool bias,
-                                   std::int64_t min_periods, const std::string& nan_policy,
-                                   const MaybeOut& out) {
+std::optional<NumpyF64> ewm_std_fn(nb::handle x, double alpha, bool bias, std::int64_t min_periods,
+                                   const std::string& nan_policy, const MaybeOut& out) {
   const EwmConfig cfg = make_ewm_config(alpha, bias, min_periods, nan_policy);
   return run_unary(x, out, [&](auto in, OutView o) { ewm_std(in, o, cfg); });
 }
