@@ -45,7 +45,7 @@ Tests: `test_semantics.py::test_dq03_default_min_periods_is_window`,
 |---|---|---|
 | mean | `+inf` or `-inf` if one sign is present, NaN if both are | `test_semantics.py::test_dq04_mean_with_one_or_both_infinity_signs` |
 | var, std, z-score, OLS | NaN; once the infinity leaves, results are clean again (it is counted apart from the running sums) | `::test_dq04_variance_nan_while_inf_in_window_then_clean` |
-| min, max | ordered normally | `::test_dq04_min_max_order_infinities` |
+| min, max, quantile | ordered normally | `::test_dq04_min_max_order_infinities`, C++ `RollingQuantile.NaNPoliciesAndInfinities` |
 | EWM | follows the recurrence: the mean becomes ±inf (NaN once both signs were seen), the variance NaN from then on | `test_properties_reference.py::test_ewm_kernels_match_reference` |
 
 ## dtypes (DQ-05)
@@ -70,9 +70,19 @@ be `(n, k)` with `x` either `(n, k)` or `(n,)`.
 Tests: `test_properties_layout.py::test_two_d_equals_column_by_column`,
 `::test_two_d_ols_with_shared_and_per_column_x`.
 
-## Arrow nulls (DQ-06)
+## Arrow input and nulls (DQ-06, FR-12)
 
-Arrow input arrives in M4; null slots will be treated exactly as NaN.
+Objects implementing the Arrow PyCapsule interface are read in place: `__arrow_c_array__`
+(pyarrow arrays), or `__arrow_c_stream__` holding a single chunk (Polars series). Only
+primitive float64 (`g`) and float32 (`f`) arrays are accepted; other formats, nested arrays
+and streams with more than one chunk raise TypeError (combine the chunks first). Null slots
+are read through the validity bitmap, without a copy, and behave exactly like NaN. Array
+offsets (sliced arrays) are honoured.
+
+Tests: `test_arrow.py::test_pyarrow_nulls_equal_numpy_nan`,
+`::test_sliced_arrow_arrays_use_the_offset`, `::test_arrow_inputs_are_not_copied`,
+`::test_chunked_inputs_raise_type_error_with_hint`,
+`::test_unsupported_arrow_types_raise_type_error`.
 
 ## `out=` and aliasing (DQ-11)
 

@@ -250,3 +250,37 @@ or keys ever go in this file.
 - **Moments.count.** The spec's field name `count` shadows `tuple.count` on `Moments`; kept
   as specified, with a type-ignore on that field.
 
+### M4 (2026-11-09)
+
+- **Rolling quantile.** Two heaps (max-heap of the k + 1 smallest valid values, min-heap of
+  the rest, k = floor(q (m - 1))) with lazy deletion through a pending-removal table keyed by
+  value (−0.0 and 0.0 share a key), rebalanced on every push; O(log w) amortised. When dead
+  entries make the heaps more than twice the window, they are rebuilt from the ring. The
+  interpolation rules and the index arithmetic follow pandas' `roll_quantile`, so results
+  match pandas for all five modes on finite data (checked to 1e-12). Pickled state is the
+  window contents only, since the quantile depends on nothing else. A hypothesis case found
+  that a value arriving when the low heap had emptied must still be compared with the high
+  heap's top; fixed with a regression test.
+- **Arrow input (D-07 option a).** A vendored copy of the Arrow C Data and C Stream
+  Interface structs (`include/qkern/arrow_c_abi.h`, Apache-2.0 notice kept) and a C++
+  importer; no pyarrow dependency. Polars 2.1 series expose only `__arrow_c_stream__`, not
+  `__arrow_c_array__`, so the importer also accepts a stream with exactly one non-empty chunk
+  (read in place) and raises TypeError with a combine-chunks hint for more. This keeps
+  FR-12's "chunked inputs raise TypeError" and meets AC-H-10's Polars case. pandas objects
+  that export Arrow streams go through NumPy instead, which avoids a pyarrow conversion.
+  Arrow detection happens in C++, so the streaming classes' `update_many` accepts Arrow input
+  too.
+- **Order-flow helpers (FR-07, Could).** Not built at M4; the BBO and book_l2 fixtures wait
+  with them. They can follow in a later minor release if a consumer needs them.
+- **Benchmark harness.** `qkdev bench run` and `bench report` follow the spec's suites,
+  schemas and log. Comparators live one file each under `bench/py/baselines/`. A comparator
+  whose output fails the pre-timing check against qkern is recorded with an error and never
+  timed. Thread counts are capped by physical cores and at 8 (shared-PC rule). SVG figures are
+  written without a date and with a fixed hash salt, so a rerun changes only the numbers.
+- **Published numbers wait.** AC-H-05 and AC-H-06 need a run on the reference machine, and
+  the owner's rule forbids published benchmark runs while the multi-week captures are active
+  (until about 2026-11-29). M4 therefore ships the harness, a CI smoke test (small sizes plus
+  a `bench run --quick` / `bench report` round trip into a temporary directory) and a
+  placeholder `docs/benchmarks.md`; no timing results are committed yet. The reference run,
+  `results/bench/*.json` and the regenerated page are the remaining M4 work after the window.
+

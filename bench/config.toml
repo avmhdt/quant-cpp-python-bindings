@@ -1,0 +1,38 @@
+# Benchmark suites (spec section 10). `qkdev bench run --suite ...` reads this file; every
+# implementation's output is checked against qkern before it is timed.
+
+[defaults]
+repeats = 7            # timed repetitions; report median and IQR
+warmup = 1             # untimed runs (also triggers Numba JIT; compile time recorded separately)
+seed = 20261030
+dtype = "float64"
+single_thread_env = { OMP_NUM_THREADS = "1", NUMBA_NUM_THREADS = "1", POLARS_MAX_THREADS = "1" }
+verify_against = "qkern"   # each impl output checked with rtol=1e-9, atol=1e-12 before timing
+
+[suites.micro]
+kernels = ["rolling_mean", "rolling_std", "rolling_zscore", "ewm_mean", "ewm_var",
+           "rolling_max", "rolling_ols", "rolling_quantile"]
+impls = ["qkern", "qkern_stream", "pure_python", "numpy", "pandas", "numba", "polars", "bottleneck"]
+n = [1_000, 100_000, 10_000_000]
+window = [20, 252, 2_520]
+layout = ["contig", "strided2"]
+limits = { pure_python_max_n = 100_000, qkern_stream_max_n = 1_000_000, numpy_sliding_view_max_bytes = 2_000_000_000 }
+
+[suites.overhead]
+calls = ["update_scalar", "batch_n1", "batch_n10", "batch_n100"]
+iterations = 1_000_000
+
+[suites.threads]
+kernels = ["rolling_std", "rolling_quantile"]
+n_per_thread = 10_000_000
+window = 252
+threads = [1, 2, 4, 8]       # capped by QKERN_BENCH_MAX_THREADS
+gil_release = [true, false]  # false sets _qkern._set_gil_release_min_n(2**62)
+
+[suites.real]
+enabled_if_env = "QKERN_REAL_DATA_DIR"
+inputs = [
+  { dataset = "trades", column = "log_return", kernels = ["rolling_std", "ewm_var", "rolling_zscore"] },
+  { dataset = "bbo", kernels = ["ofi_from_bbo"] },
+]
+window = [100, 1_000]

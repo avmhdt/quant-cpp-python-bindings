@@ -20,6 +20,7 @@
 #include <string>
 #include <utility>
 
+#include "arrow_input.hpp"
 #include "qkern/views.hpp"
 
 namespace qkern::bindings {
@@ -80,6 +81,11 @@ struct Input {
   std::ptrdiff_t s0 = 1;  // element strides
   std::ptrdiff_t s1 = 0;
   std::unique_ptr<double[]> owned;  // NOLINT(*-avoid-c-arrays): converted copy, if any
+  // Arrow validity bitmap (1-D Arrow inputs only); a cleared bit reads as NaN (DQ-06).
+  const std::uint8_t* validity = nullptr;
+  std::int64_t validity_offset = 0;
+  // Keeps an Arrow import made here (from __arrow_c_array__ / __arrow_c_stream__) alive.
+  std::shared_ptr<ArrowInput> arrow_owner;
   // Byte range of the caller's buffer, for the out= overlap check.
   std::uintptr_t lo = 0;
   std::uintptr_t hi = 0;
@@ -89,7 +95,7 @@ struct Input {
   template <Real T>
   [[nodiscard]] StridedView<T> column(std::size_t j) const noexcept {
     const T* base = static_cast<const T*>(data) + static_cast<std::ptrdiff_t>(j) * s1;
-    return StridedView<T>{base, rows, s0};
+    return StridedView<T>{base, rows, s0, validity, validity_offset};
   }
 
   // Calls f(StridedView<double or float>) for column j.
@@ -237,6 +243,62 @@ inline Input resolve_input(const AnyIn& a, const char* name, std::size_t max_ndi
   return in;
 }
 
+namespace detail {
+
+inline Input input_from_arrow(const ArrowInput& arrow) {
+  const ArrowValues& v = arrow.values();
+  Input in;
+  in.ndim = 1;
+  in.rows = v.length;
+  in.cols = 1;
+  in.s0 = 1;
+  in.s1 = 0;
+  in.kind = v.kind == ArrowKind::Float64 ? Kind::F64 : Kind::F32;
+  in.data = v.values;
+  in.validity = v.validity;
+  in.validity_offset = v.validity_offset;
+  const std::size_t itemsize = v.kind == ArrowKind::Float64 ? 8 : 4;
+  in.lo = reinterpret_cast<std::uintptr_t>(v.values);  // NOLINT(*-reinterpret-cast)
+  in.hi = in.lo + (v.values == nullptr ? 0 : v.length * itemsize);
+  return in;
+}
+
+inline bool is_pandas(nb::handle h) {
+  const auto mod = nb::cast<std::string>(nb::handle(h.type()).attr("__module__"));
+  return mod.starts_with("pandas");
+}
+
+}  // namespace detail
+
+// Resolves an ndarray, an _ArrowInput, or any object exporting the Arrow PyCapsule interface
+// (__arrow_c_array__, or a single-chunk __arrow_c_stream__), all read in place.
+inline Input resolve_input(nb::handle h, const char* name, std::size_t max_ndim = 2) {
+  if (nb::isinstance<ArrowInput>(h)) {
+    return detail::input_from_arrow(nb::cast<const ArrowInput&>(h));
+  }
+  AnyIn a;
+  if (!nb::try_cast<AnyIn>(h, a)) {
+    const bool has_array = nb::hasattr(h, "__arrow_c_array__");
+    if (has_array || (nb::hasattr(h, "__arrow_c_stream__") && !detail::is_pandas(h))) {
+      auto owner = std::make_shared<ArrowInput>();
+      if (has_array) {
+        const auto caps = nb::cast<nb::tuple>(h.attr("__arrow_c_array__")());
+        owner->init_from_array(nb::borrow(caps[0]), nb::borrow(caps[1]));
+      } else {
+        owner->init_from_stream(nb::borrow(h.attr("__arrow_c_stream__")()));
+      }
+      Input in = detail::input_from_arrow(*owner);
+      in.arrow_owner = std::move(owner);
+      return in;
+    }
+    throw nb::type_error((std::string(name) +
+                          " must be a NumPy array (or another buffer of a real numeric dtype) "
+                          "or an Arrow float64/float32 array")
+                             .c_str());
+  }
+  return resolve_input(a, name, max_ndim);
+}
+
 // ---------------------------------------------------------------------------------------
 // Outputs
 // ---------------------------------------------------------------------------------------
@@ -317,7 +379,7 @@ inline Output resolve_out(const AnyOut& out, const Input& in) {
 // out= when given (returns nullopt) or into a new array (returned). The GIL is released
 // once for the whole call (FR-13, FR-14).
 template <class Kernel>
-std::optional<NumpyF64> run_unary(const AnyIn& x, const std::optional<AnyOut>& out,
+std::optional<NumpyF64> run_unary(nb::handle x, const std::optional<AnyOut>& out,
                                   const Kernel& kernel) {
   const Input in = resolve_input(x, "x");
   std::optional<OutBuffer<double>> buf;

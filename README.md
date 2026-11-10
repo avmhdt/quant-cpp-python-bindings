@@ -2,7 +2,7 @@
 
 > A small, fast C++ core shipped as a real Python package with wheels, docs and CI.
 
-**Status:** in development (M3: binding layer and Python API)
+**Status:** in development (M4: quantile, Arrow input and benchmark harness)
 
 | | |
 |---|---|

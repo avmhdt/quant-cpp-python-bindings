@@ -118,7 +118,7 @@ void bind_rolling_moments(nb::module_& m) {
       .def("update", &RollingMoments::push, "x"_a, "Push one observation.")
       .def(
           "update_many",
-          [](RollingMoments& s, const AnyIn& x) {
+          [](RollingMoments& s, nb::handle x) {
             const Input in = resolve_input(x, "x", 1);
             OutBuffer<double> mean(in);
             OutBuffer<double> var(in);
@@ -188,7 +188,7 @@ void bind_ewm_class(nb::module_& m) {
       .def("update", &Ewm::push, "x"_a, "Push one observation.")
       .def(
           "update_many",
-          [](Ewm& s, const AnyIn& x) {
+          [](Ewm& s, nb::handle x) {
             const Input in = resolve_input(x, "x", 1);
             OutBuffer<double> mean(in);
             OutBuffer<double> var(in);
@@ -257,7 +257,7 @@ void bind_minmax_class(nb::module_& m) {
       .def("update", &RollingMinMax::push, "x"_a, "Push one observation.")
       .def(
           "update_many",
-          [](RollingMinMax& s, const AnyIn& x) {
+          [](RollingMinMax& s, nb::handle x) {
             const Input in = resolve_input(x, "x", 1);
             OutBuffer<double> lo(in);
             OutBuffer<double> hi(in);
@@ -317,7 +317,7 @@ void bind_ols_class(nb::module_& m) {
       .def("update", &OlsStream::push, "y"_a, "x"_a, "Push one (y, x) pair.")
       .def(
           "update_many",
-          [](OlsStream& s, const AnyIn& y, const AnyIn& x) {
+          [](OlsStream& s, nb::handle y, nb::handle x) {
             const Input yin = resolve_input(y, "y", 1);
             const Input xin = resolve_input(x, "x", 1);
             if (yin.rows != xin.rows) {

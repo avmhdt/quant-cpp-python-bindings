@@ -80,7 +80,8 @@ if(QKERN_BUILD_PYTHON)
     src/bindings/bind_ewm.cpp
     src/bindings/bind_minmax.cpp
     src/bindings/bind_ols.cpp
-    src/bindings/bind_streaming.cpp)
+    src/bindings/bind_streaming.cpp
+    src/bindings/bind_quantile.cpp)
   target_link_libraries(_qkern PRIVATE qkern::core)
   target_include_directories(_qkern PRIVATE src/bindings)
   qkern_set_warnings(_qkern)

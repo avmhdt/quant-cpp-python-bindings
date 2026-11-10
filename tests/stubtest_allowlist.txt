@@ -11,3 +11,8 @@ qkern\._qkern\.EWM
 qkern\._qkern\.RollingMinMax
 qkern\._qkern\.RollingMoments
 qkern\._qkern\.RollingOLS
+qkern\._qkern\.RollingQuantile
+qkern\._qkern\._ArrowInput
+# _ArrowInput is built only through its static factories, which look like plain nb_func
+# objects at runtime (no inspect signature).
+qkern\._qkern\._ArrowInput\..*

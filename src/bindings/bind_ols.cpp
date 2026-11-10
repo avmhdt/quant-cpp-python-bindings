@@ -25,7 +25,7 @@ namespace {
 
 using OlsArrays = std::tuple<NumpyF64, NumpyF64, NumpyF64, NumpyF64>;
 
-OlsArrays ols_fn(const AnyIn& y, const AnyIn& x, std::int64_t window,
+OlsArrays ols_fn(nb::handle y, nb::handle x, std::int64_t window,
                  std::optional<std::int64_t> min_periods, bool include_current,
                  const std::string& nan_policy) {
   const RollingConfig cfg = make_rolling_config(window, min_periods, 1, nan_policy);

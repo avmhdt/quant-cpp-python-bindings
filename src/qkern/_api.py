@@ -11,7 +11,8 @@ Shared rules (spec DQ-01 to DQ-06, DQ-11):
 * ``+inf`` and ``-inf`` are valid values (pandas treats them as missing; see the docs'
   Semantics page).
 * float64 and float32 inputs of any stride are read in place; integer and bool inputs are
-  converted once to float64. 2-D inputs of shape ``(n, k)`` are processed column by column
+  converted once to float64. Arrow arrays (pyarrow, or a single-chunk Polars series) are
+  read in place, nulls acting as NaN. 2-D inputs of shape ``(n, k)`` are processed column by column
   along axis 0. Results are float64 arrays that own their memory.
 * ``out=`` takes a writeable float64 array of the input's shape that does not overlap it;
   the result is written there and ``out`` is returned.
@@ -28,12 +29,16 @@ import numpy.typing as npt
 from qkern import _qkern
 from qkern._results import Moments, OLSResult
 from qkern._validate import (
+    Input,
+    Interp,
     NanPolicy,
     as_input,
     check_int,
+    check_interpolation,
     check_nan_policy,
     check_out,
     resolve_min_periods,
+    shape_of,
 )
 
 F64: TypeAlias = npt.NDArray[np.float64]
@@ -47,11 +52,18 @@ class ArrowArrayExportable(Protocol):
     ) -> tuple[object, object]: ...
 
 
+class ArrowStreamExportable(Protocol):
+    """An object exporting an Arrow stream (single chunk only), such as a Polars Series."""
+
+    def __arrow_c_stream__(self, requested_schema: object | None = None) -> object: ...
+
+
 ArrayIn: TypeAlias = (
     npt.NDArray[np.floating[Any]]
     | npt.NDArray[np.integer[Any]]
     | npt.NDArray[np.bool_]
     | ArrowArrayExportable
+    | ArrowStreamExportable
 )
 
 
@@ -64,14 +76,14 @@ def _finish(result: F64 | None, out: F64 | None) -> F64:
 
 def _rolling_args(
     x: ArrayIn, window: int, min_periods: int | None, nan_policy: NanPolicy
-) -> tuple[npt.NDArray[np.generic], int, int, NanPolicy]:
+) -> tuple[Input, int, int, NanPolicy]:
     arr = as_input(x)
     w = check_int(window, "window")
     return arr, w, resolve_min_periods(min_periods, w), check_nan_policy(nan_policy)
 
 
-def _out(out: F64 | None, arr: npt.NDArray[np.generic]) -> F64 | None:
-    return None if out is None else check_out(out, arr.shape)
+def _out(out: F64 | None, arr: Input) -> F64 | None:
+    return None if out is None else check_out(out, shape_of(arr))
 
 
 # ---------------------------------------------------------------------------------------
@@ -219,7 +231,7 @@ def _ewm_args(
     halflife: float | None,
     min_periods: int,
     nan_policy: NanPolicy,
-) -> tuple[npt.NDArray[np.generic], float, int, NanPolicy]:
+) -> tuple[Input, float, int, NanPolicy]:
     arr = as_input(x)
     a = _qkern._resolve_alpha(alpha, span, halflife)
     return arr, a, check_int(min_periods, "min_periods"), check_nan_policy(nan_policy)
@@ -383,6 +395,53 @@ def rolling_ols(
     policy = check_nan_policy(nan_policy)
     alpha, beta, resid, r2 = _qkern.rolling_ols(yarr, xarr, w, mp, bool(include_current), policy)
     return OLSResult(alpha, beta, resid, r2)
+
+
+def rolling_quantile(
+    x: ArrayIn,
+    window: int,
+    q: float,
+    *,
+    min_periods: int | None = None,
+    interpolation: Interp = "linear",
+    nan_policy: NanPolicy = "skip",
+    out: F64 | None = None,
+) -> F64:
+    """Rolling quantile ``q`` (0 <= q <= 1) of the valid values in each window.
+
+    At ``h = q (m - 1)`` for ``m`` valid values, with order statistics ``v_k <= v_{k+1}``
+    around ``h``: ``linear`` interpolates, ``lower``/``higher`` take ``v_k``/``v_{k+1}``,
+    ``nearest`` the closer one (exact halves to the even index) and ``midpoint`` their mean,
+    as in pandas. Algorithm: two heaps with lazy deletion, O(log window) per element.
+    Infinities are ordered normally.
+
+    Example:
+        >>> import numpy as np, qkern
+        >>> qkern.rolling_quantile(np.array([5.0, 1.0, 4.0, 2.0]), 3, 0.5)
+        array([nan, nan,  4.,  2.])
+    """
+    arr, w, mp, policy = _rolling_args(x, window, min_periods, nan_policy)
+    interp = check_interpolation(interpolation)
+    target = _out(out, arr)
+    return _finish(_qkern.rolling_quantile(arr, w, mp, float(q), interp, policy, target), target)
+
+
+def rolling_median(
+    x: ArrayIn,
+    window: int,
+    *,
+    min_periods: int | None = None,
+    nan_policy: NanPolicy = "skip",
+    out: F64 | None = None,
+) -> F64:
+    """Rolling median: :func:`rolling_quantile` with ``q = 0.5``, linear interpolation.
+
+    Example:
+        >>> import numpy as np, qkern
+        >>> qkern.rolling_median(np.array([5.0, 1.0, 4.0, 2.0]), 2)
+        array([nan, 3. , 2.5, 3. ])
+    """
+    return rolling_quantile(x, window, 0.5, min_periods=min_periods, nan_policy=nan_policy, out=out)
 
 
 # ---------------------------------------------------------------------------------------

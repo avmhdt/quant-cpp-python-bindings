@@ -18,6 +18,7 @@ __all__ = [
     "rolling_mean",
     "rolling_min",
     "rolling_ols",
+    "rolling_quantile",
     "rolling_std",
     "rolling_var",
     "rolling_zscore",
@@ -162,6 +163,50 @@ def rolling_max(
     mp = _check(window, min_periods, nan_policy)
     xs = _floats(values, nan_policy)
     return [math.nan if w is None else max(w) for w in _windows(xs, window, mp, nan_policy)]
+
+
+def _quantile(valid: list[float], q: float, interpolation: str) -> float:
+    v = sorted(valid)
+    h = q * (len(v) - 1)
+    k = math.floor(h)
+    frac = h - k
+    lo = v[k]
+    if frac == 0.0:
+        return lo
+    hi = v[k + 1]
+    if interpolation == "lower":
+        return lo
+    if interpolation == "higher":
+        return hi
+    if interpolation == "midpoint":
+        return lo if lo == hi else (lo + hi) / 2.0
+    if interpolation == "nearest":
+        if frac == 0.5:
+            return lo if k % 2 == 0 else hi
+        return lo if frac < 0.5 else hi
+    return lo if lo == hi else lo + (hi - lo) * frac
+
+
+def rolling_quantile(
+    values: Iterable[float],
+    window: int,
+    q: float,
+    *,
+    min_periods: int | None = None,
+    interpolation: str = "linear",
+    nan_policy: str = "skip",
+) -> list[float]:
+    """Reference rolling quantile (pandas' interpolation rules on the sorted window)."""
+    mp = _check(window, min_periods, nan_policy)
+    if not 0.0 <= q <= 1.0:
+        raise ValueError("q must satisfy 0 <= q <= 1")
+    if interpolation not in ("linear", "lower", "higher", "nearest", "midpoint"):
+        raise ValueError(f"bad interpolation {interpolation!r}")
+    xs = _floats(values, nan_policy)
+    return [
+        math.nan if w is None else _quantile(w, q, interpolation)
+        for w in _windows(xs, window, mp, nan_policy)
+    ]
 
 
 def _ewm_weights(n: int, alpha: float) -> list[float]:
