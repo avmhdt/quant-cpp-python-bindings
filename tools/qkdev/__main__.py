@@ -11,6 +11,7 @@ from tools.qkdev import bench as bench_mod
 from tools.qkdev import data as data_mod
 from tools.qkdev import fixtures as fixtures_mod
 from tools.qkdev import golden as golden_mod
+from tools.qkdev import release as release_mod
 from tools.qkdev import stubs as stubs_mod
 from tools.qkdev.settings import load_settings
 
@@ -23,6 +24,8 @@ app.add_typer(data_app, name="data")
 app.add_typer(stubs_app, name="stubs")
 bench_app = typer.Typer(no_args_is_help=True, help="Benchmarks (bench dependency group).")
 app.add_typer(bench_app, name="bench")
+release_app = typer.Typer(no_args_is_help=True, help="Release checks (agents never tag).")
+app.add_typer(release_app, name="release")
 
 log = logging.getLogger("qkdev")
 
@@ -115,6 +118,35 @@ def bench_report(
 ) -> None:
     """Regenerate docs/benchmarks.md and the figures from one results file."""
     bench_mod.report(in_, docs, figures, allow_dirty=allow_dirty)
+
+
+@release_app.command("check")
+def release_check(
+    tag: str = typer.Option(..., "--tag", help="vX.Y.Z"),
+    allow_dirty: bool = typer.Option(False, "--allow-dirty"),
+) -> None:
+    """Tag equals the pyproject version, CHANGELOG has its dated section, licence metadata set."""
+    raise typer.Exit(release_mod.check(tag, require_clean=not allow_dirty))
+
+
+@release_app.command("notes")
+def release_notes(
+    version: str = typer.Option(..., "--version"),
+    output: Path = typer.Option(Path("release-notes.md"), "--output"),
+) -> None:
+    """Write the CHANGELOG section of a version (the GitHub Release body)."""
+    raise typer.Exit(release_mod.notes(version, output))
+
+
+@release_app.command("smoke")
+def release_smoke(
+    index: str = typer.Option(..., "--index", help="testpypi or pypi"),
+    version: str = typer.Option(..., "--version"),
+) -> None:
+    """Install qkern==VERSION from the index into a fresh venv and run the smoke test."""
+    if index not in release_mod.INDEXES:
+        raise typer.BadParameter("index must be testpypi or pypi")
+    raise typer.Exit(release_mod.smoke(index, version))
 
 
 if __name__ == "__main__":

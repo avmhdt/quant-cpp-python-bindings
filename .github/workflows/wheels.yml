@@ -1,0 +1,107 @@
+name: wheels
+
+# Builds and tests every wheel (FR-18) and the sdist (FR-17). Runs on pushes to main, on pull
+# requests labelled "wheels", by hand, and from release.yml (workflow_call).
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wheels-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  wheels:
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'wheels')
+    name: wheels (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-x86_64, os: ubuntu-latest, archs: x86_64 }
+          - { name: linux-aarch64, os: ubuntu-24.04-arm, archs: aarch64 }
+          - { name: macos-arm64, os: macos-latest, archs: arm64 }
+          # No Intel macOS runner is assumed (R-05): cross-build on arm64, test under Rosetta.
+          - { name: macos-x86_64, os: macos-latest, archs: x86_64 }
+          - { name: windows-amd64, os: windows-latest, archs: AMD64 }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pypa/cibuildwheel@f9b966cfadf4109556cadc5bb39ddb72d0ce664e # v4.3.5
+        env:
+          CIBW_ARCHS: ${{ matrix.archs }}
+        with:
+          output-dir: wheelhouse
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: Check wheels (abi3 tag and extension, abi3audit, size, twine)
+        shell: bash
+        run: |
+          ls -l wheelhouse
+          for w in wheelhouse/*.whl; do
+            size=$(wc -c < "$w")
+            if [ "$size" -gt 1572864 ]; then echo "$w is larger than 1.5 MB ($size)"; exit 1; fi
+          done
+          n312=0
+          for w in wheelhouse/*-cp312-*.whl; do
+            n312=$((n312 + 1))
+            case "$w" in *-cp312-abi3-*) ;; *) echo "cp312 wheel is not abi3: $w"; exit 1;; esac
+            python3 -m zipfile -l "$w" | grep -E 'qkern/_qkern\.(abi3\.so|pyd)' \
+              || { echo "no limited-API extension in $w"; exit 1; }
+          done
+          [ "$n312" -eq 1 ] || { echo "expected one cp312 abi3 wheel, found $n312"; exit 1; }
+          ls wheelhouse/*-cp311-cp311-*.whl
+          if ls wheelhouse/*-cp31[34]-*.whl 2>/dev/null; then
+            echo "3.13/3.14 must reuse the abi3 wheel, not get their own"; exit 1
+          fi
+          uvx abi3audit --strict --report wheelhouse/*-abi3-*.whl | tee abi3audit-${{ matrix.name }}.json
+          uvx twine check --strict wheelhouse/*.whl
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: wheels-${{ matrix.name }}
+          path: |
+            wheelhouse/*.whl
+            abi3audit-*.json
+          retention-days: 30
+
+  sdist:
+    # The sdist builds from source with GCC (Linux) and MSVC (Windows) with no downloads beyond
+    # the build requirements (FR-17, AC-W-11).
+    name: sdist (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.12"
+      - name: Build sdist
+        shell: bash
+        run: |
+          uv build --sdist -o dist
+          uvx twine check --strict dist/*.tar.gz
+      - name: Install from the sdist and smoke-test
+        shell: bash
+        run: |
+          uv venv --python 3.12 sdist-venv
+          if [ "$RUNNER_OS" = "Windows" ]; then py=sdist-venv/Scripts/python; else py=sdist-venv/bin/python; fi
+          uv pip install --python "$py" dist/*.tar.gz
+          cd "$RUNNER_TEMP"
+          "$GITHUB_WORKSPACE/$py" "$GITHUB_WORKSPACE/tools/qkdev/smoke.py"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+          retention-days: 30
