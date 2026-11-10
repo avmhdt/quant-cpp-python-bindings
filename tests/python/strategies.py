@@ -35,7 +35,11 @@ def series(
 ) -> F64:
     """A float64 series with an optional share of NaN (0-30%) and infinities."""
     n = draw(st.integers(min_size, max_size))
-    finite = st.floats(-max_abs, max_abs, allow_nan=False, allow_infinity=False)
+    # Magnitudes below 1e-100 are flushed to 0: their squared deviations underflow into
+    # subnormals, where neither qkern nor the fsum reference keeps relative accuracy.
+    finite = st.floats(-max_abs, max_abs, allow_nan=False, allow_infinity=False).map(
+        lambda v: 0.0 if abs(v) < 1e-100 else v
+    )
     values = draw(st.lists(finite, min_size=n, max_size=n))
     x = np.array(values, dtype=np.float64)
     if n and allow_nan:

@@ -20,7 +20,7 @@ env:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -76,8 +76,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: gcc13, os: ubuntu-latest, preset: gcc13 }
-          - { name: clang18, os: ubuntu-latest, preset: clang18 }
+          - { name: gcc13, os: ubuntu-24.04, preset: gcc13 }
+          - { name: clang18, os: ubuntu-24.04, preset: clang18 }
           - { name: appleclang, os: macos-latest, preset: dev }
           - { name: msvc, os: windows-latest, preset: msvc }
     steps:
@@ -105,10 +105,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-24.04, macos-latest, windows-latest]
         python: ["3.11", "3.12", "3.13"]
         include:
-          - { os: ubuntu-latest, python: "3.14" }
+          - { os: ubuntu-24.04, python: "3.14" }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
@@ -126,7 +126,7 @@ jobs:
     # NFR-09 / AC-W-03: C++ line coverage of include/qkern and src/bindings from the
     # GoogleTest run and the pytest run combined (gcovr), and Python branch coverage of
     # src/qkern (pytest-cov). Both gates are 90%.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
       GCOVR: uvx gcovr==8.8 --gcov-executable gcov-13 --root . --filter include/qkern --filter src/bindings --exclude-throw-branches
@@ -171,7 +171,7 @@ jobs:
 
   cpp-consumer:
     # FR-16: qkern::core through `cmake --install` + find_package, and through CPM.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -195,7 +195,7 @@ jobs:
   bench-smoke:
     # Informational: benchmarks at small sizes plus one `bench run --quick` + `bench report`
     # round trip into a temporary directory. Fails on errors only, never on timings.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       QKERN_BENCH_MAX_THREADS: "2"
@@ -212,7 +212,7 @@ jobs:
     # Single required check for the main ruleset: passes only if every job above passed.
     if: always()
     needs: [lint, cpp, python, coverage, cpp-consumer, bench-smoke]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: All jobs passed
         run: |

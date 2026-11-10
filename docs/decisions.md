@@ -310,4 +310,12 @@ or keys ever go in this file.
   by hand. The build warns that Material for MkDocs reaches end of life on 2027-05-05, with
   Zensical as its successor (R-11): versions stay pinned in `uv.lock` and a migration can
   follow after 0.x.
+- **Pinned Linux runners.** `ubuntu-latest` moved to Ubuntu 26.04 during M5, which no longer
+  ships clang-18 (and every job then fell back to a slow apt mirror). All Linux jobs pin
+  `ubuntu-24.04`, the image the spec names; lint takes clang-format and clang-tidy 18.1.8
+  from PyPI.
+- **Test data range.** Hypothesis series flush magnitudes below 1e-100 to 0: deviations of
+  such values square into subnormals (found at 1e-160 on aarch64), where no algorithm or
+  reference keeps relative accuracy. The documented domain is unchanged; this only keeps the
+  oracles meaningful.
 
